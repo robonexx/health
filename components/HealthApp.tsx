@@ -1,10 +1,27 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
-import type { Activity, Meal, MealPlan, PlanLength, PlanOwner, SavedMealPlan, UserKey } from '@/lib/types';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import type {
+  Activity,
+  DayPlanKind,
+  Meal,
+  MealPlan,
+  PlanLength,
+  PlanOwner,
+  SavedActivity,
+  SavedDayPlan,
+  SavedMeal,
+  SavedMealPlan,
+  SavedWeekPlan,
+  UserKey,
+  WeekDayTemplate,
+} from '@/lib/types';
 
 type LoginUser = { name: string; key: UserKey };
+type Toast = { id: number; text: string; type?: 'good' | 'bad' } | null;
+type Tab = 'today' | 'calendar' | 'bank' | 'training';
+type CalendarDay = { date: string; inMonth: boolean; day: number; hasMeals: boolean; hasActivities: boolean; completedMeals: number; totalMeals: number; completedActivities: number; totalActivities: number };
 
 const USERS = [
   { name: 'Robert', key: 'robert', password: 'robert26' },
@@ -12,70 +29,60 @@ const USERS = [
   { name: 'Erika', key: 'erika', password: 'erika26' },
 ] as const;
 
-const ownerLabel: Record<PlanOwner, string> = {
-  shared: 'Gemensam plan',
-  robert: 'Roberts plan',
-  erika: 'Erikas plan',
-};
+const ownerLabel: Record<PlanOwner, string> = { shared: 'Gemensam', robert: 'Robert', erika: 'Erika' };
+const lengthLabel: Record<PlanLength, string> = { day: 'Dag', week: 'Vecka', ongoing: 'Pågående' };
+const kindLabel: Record<DayPlanKind, string> = { food: 'Mat', training: 'Träning', full: 'Mat + träning' };
+const weekdays = ['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön'];
+const defaultMeals = [
+  { title: 'Frukost', time: '08:00', items: ['Ägg', 'Kaffe', 'Grapefruit'] },
+  { title: 'Lunch', time: '12:00', items: [] },
+  { title: 'Mellis', time: '15:00', items: [] },
+  { title: 'Middag', time: '18:00', items: [] },
+];
 
-const ownerIntro: Record<PlanOwner, string> = {
-  shared: 'Ert gemensamma upplägg för dagen, veckan eller en plan som fortsätter tills ni ändrar den.',
-  robert: 'Din egen mat och träning, men Erika kan fortfarande se planen.',
-  erika: 'Din egen mat och träning, men Robert kan fortfarande se planen.',
-};
+const input = 'w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 disabled:bg-slate-50 disabled:text-slate-500';
+const darkInput = 'w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm font-bold text-white outline-none transition placeholder:text-white/25 focus:border-emerald-300/40 focus:ring-4 focus:ring-emerald-300/10 disabled:text-white/35 [color-scheme:dark]';
+const button = 'inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-black transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-45';
+const primaryButton = `${button} bg-white text-slate-950 shadow-xl shadow-black/20 hover:-translate-y-0.5 hover:bg-emerald-100`;
+const greenButton = `${button} bg-emerald-300 text-slate-950 shadow-xl shadow-emerald-950/20 hover:-translate-y-0.5 hover:bg-emerald-200`;
+const softButton = `${button} border border-slate-200 bg-white text-slate-700 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50`;
+const softDarkButton = `${button} border border-white/10 bg-white/[0.07] text-white/70 hover:-translate-y-0.5 hover:bg-white/[0.12] hover:text-white`;
+const dangerButton = `${button} border border-rose-300/20 bg-rose-400/12 text-rose-100 hover:-translate-y-0.5 hover:bg-rose-400/20`;
+const miniButton = 'rounded-xl border px-3 py-2 text-xs font-black transition disabled:opacity-40';
+const card = 'rounded-[2rem] border border-white/10 bg-white/[0.08] shadow-[0_28px_100px_rgba(0,0,0,0.28)] backdrop-blur-2xl';
 
-const lengthLabel: Record<PlanLength, string> = {
-  day: '1 dag',
-  week: '1 vecka',
-  ongoing: 'Pågående',
-};
-
-const defaultMeals = ['Frukost', 'Lunch', 'Mellis', 'Middag'];
-
-function today() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function uid() {
-  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function parseItems(value: string) {
-  return value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function mealText(items: string[]) {
-  return items.join(', ');
-}
-
-function emptyPlan(owner: PlanOwner, date: string): MealPlan {
-  return {
-    owner,
-    title: owner === 'shared' ? 'Vår gemensamma matplan' : owner === 'robert' ? 'Roberts matplan' : 'Erikas matplan',
-    date,
-    length: 'day',
-    meals: defaultMeals.map((title) => ({ id: uid(), title, items: [], completedBy: {} })),
-  };
-}
-
-function cloneMeals(meals: Meal[]) {
-  return meals.map((meal) => ({ ...meal, id: uid(), completedBy: {} }));
-}
-
-function countFoodItems(plan: MealPlan) {
-  return plan.meals.reduce((sum, meal) => sum + meal.items.length, 0);
-}
-
-function completionPercent(plan: MealPlan, user: UserKey) {
-  const filledMeals = plan.meals.filter((meal) => meal.items.length > 0);
-  if (!filledMeals.length) return 0;
-  const completed = filledMeals.filter((meal) => meal.completedBy[user]).length;
-  return Math.round((completed / filledMeals.length) * 100);
+function today() { return new Date().toISOString().slice(0, 10); }
+function uid() { return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`; }
+function toDate(value: string) { return new Date(`${value}T12:00:00`); }
+function iso(date: Date) { return date.toISOString().slice(0, 10); }
+function parseItems(value: string) { return value.split(/,|\n/).map((item) => item.trim()).filter(Boolean); }
+function itemsToText(items: string[]) { return items.join('\n'); }
+function formatDate(value: string) { return toDate(value).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' }); }
+function monthLabel(value: string) { return toDate(value).toLocaleDateString('sv-SE', { month: 'long', year: 'numeric' }); }
+function addDays(value: string, days: number) { const date = toDate(value); date.setDate(date.getDate() + days); return iso(date); }
+function monthStart(value: string) { const date = toDate(value); date.setDate(1); return iso(date); }
+function prevMonth(value: string) { const date = toDate(value); date.setMonth(date.getMonth() - 1, 1); return iso(date); }
+function nextMonth(value: string) { const date = toDate(value); date.setMonth(date.getMonth() + 1, 1); return iso(date); }
+function mondayOf(value: string) { const date = toDate(value); const day = date.getDay() || 7; date.setDate(date.getDate() - day + 1); return iso(date); }
+function cleanMeal(meal: Meal): Meal { return { ...meal, id: meal.id || uid(), title: meal.title?.trim() || 'Ny måltid', time: meal.time?.trim() || '', items: Array.isArray(meal.items) ? meal.items.map((i) => i.trim()).filter(Boolean) : [], notes: meal.notes?.trim() || '', completedBy: meal.completedBy || {} }; }
+function cleanSavedActivity(activity: Partial<SavedActivity>): SavedActivity { return { owner: (activity.owner || 'shared') as PlanOwner, title: activity.title?.trim() || 'Ny aktivitet', time: activity.time?.trim() || '', comment: activity.comment?.trim() || '', createdBy: (activity.createdBy || 'robert') as UserKey }; }
+function emptyPlan(owner: PlanOwner, date: string): MealPlan { return { owner, title: owner === 'shared' ? 'Dagens gemensamma plan' : `${ownerLabel[owner]}s dag`, date, length: 'day', meals: defaultMeals.map((m) => ({ id: uid(), title: m.title, time: m.time, items: m.items, notes: '', completedBy: {} })) }; }
+function cloneMeals(meals: Meal[]) { return meals.map((meal) => ({ ...cleanMeal(meal), id: uid(), completedBy: {} })); }
+function mealTotal(plan: MealPlan) { return plan.meals.filter((meal) => meal.items.length > 0).length; }
+function completedMeals(plan: MealPlan, user: UserKey) { return plan.meals.filter((meal) => meal.items.length > 0 && meal.completedBy[user]).length; }
+function activityTotal(activities: Activity[]) { return activities.length; }
+function completedActivities(activities: Activity[], user: UserKey) { return activities.filter((activity) => activity.completedBy[user]).length; }
+function progress(done: number, total: number) { return total ? Math.round((done / total) * 100) : 0; }
+function weekDates(value: string) { const monday = mondayOf(value); return Array.from({ length: 7 }, (_, i) => addDays(monday, i)); }
+function calendarRange(monthValue: string) {
+  const first = toDate(monthStart(monthValue));
+  const firstWeekday = first.getDay() || 7;
+  const gridStart = new Date(first);
+  gridStart.setDate(first.getDate() - firstWeekday + 1);
+  const start = iso(gridStart);
+  const endDate = new Date(gridStart);
+  endDate.setDate(gridStart.getDate() + 41);
+  return { start, end: iso(endDate) };
 }
 
 export default function HealthApp({ owner }: { owner: PlanOwner }) {
@@ -84,313 +91,320 @@ export default function HealthApp({ owner }: { owner: PlanOwner }) {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [selectedDate, setSelectedDate] = useState(today());
+  const [calendarMonth, setCalendarMonth] = useState(monthStart(today()));
+  const [tab, setTab] = useState<Tab>('today');
   const [plans, setPlans] = useState<MealPlan[]>([]);
-  const [templates, setTemplates] = useState<SavedMealPlan[]>([]);
+  const [calendarPlans, setCalendarPlans] = useState<MealPlan[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [activityTitle, setActivityTitle] = useState('');
-  const [activityTime, setActivityTime] = useState('');
-  const [activityComment, setActivityComment] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [calendarActivities, setCalendarActivities] = useState<Activity[]>([]);
+  const [savedMeals, setSavedMeals] = useState<SavedMeal[]>([]);
+  const [oldDayTemplates, setOldDayTemplates] = useState<SavedMealPlan[]>([]);
+  const [savedActivities, setSavedActivities] = useState<SavedActivity[]>([]);
+  const [dayPlans, setDayPlans] = useState<SavedDayPlan[]>([]);
+  const [weekPlans, setWeekPlans] = useState<SavedWeekPlan[]>([]);
+  const [activityDraft, setActivityDraft] = useState({ title: '', time: '', comment: '' });
+  const [mealDraft, setMealDraft] = useState({ title: '', time: '', item: '', notes: '' });
+  const [toast, setToast] = useState<Toast>(null);
+  const [isBusy, setIsBusy] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('health-user');
-    if (saved) setCurrentUser(JSON.parse(saved));
+    const saved = window.localStorage.getItem('health-user');
+    if (!saved) return;
+    try {
+      const parsed = JSON.parse(saved) as LoginUser;
+      if (parsed?.key === 'robert' || parsed?.key === 'erika') setCurrentUser(parsed);
+    } catch { window.localStorage.removeItem('health-user'); }
   }, []);
 
   useEffect(() => {
     if (!currentUser) return;
-    loadPlans(selectedDate);
-    loadTemplates();
-    loadActivities(selectedDate);
-  }, [currentUser, selectedDate]);
+    setIsBusy(true);
+    void refreshData().finally(() => setIsBusy(false));
+  }, [currentUser, selectedDate, calendarMonth]);
 
   const plan = useMemo(() => plans.find((item) => item.owner === owner) || emptyPlan(owner, selectedDate), [plans, owner, selectedDate]);
-  const ownerActivities = activities.filter((activity) => activity.owner === owner);
+  const ownerActivities = useMemo(() => activities.filter((activity) => activity.owner === owner), [activities, owner]);
+  const canEdit = Boolean(currentUser && (owner === 'shared' || owner === currentUser.key));
+  const ownerSavedMeals = savedMeals.filter((meal) => meal.owner === owner);
+  const ownerSavedActivities = savedActivities.filter((activity) => activity.owner === owner);
+  const ownerDayPlans = dayPlans.filter((dayPlan) => dayPlan.owner === owner);
+  const ownerWeekPlans = weekPlans.filter((weekPlan) => weekPlan.owner === owner);
+  const ownerOldDayTemplates = oldDayTemplates.filter((template) => template.owner === owner);
+  const selectedWeek = weekDates(selectedDate);
+  const calendarDays = useMemo(() => buildCalendarDays(calendarMonth, calendarPlans.filter((p) => p.owner === owner), calendarActivities.filter((a) => a.owner === owner), currentUser?.key || 'robert'), [calendarMonth, calendarPlans, calendarActivities, owner, currentUser]);
 
-  const allPlans = useMemo(() => {
-    const map = new Map<PlanOwner, MealPlan>();
-    (['shared', 'robert', 'erika'] as PlanOwner[]).forEach((key) => {
-      map.set(key, plans.find((item) => item.owner === key) || emptyPlan(key, selectedDate));
-    });
-    return map;
-  }, [plans, selectedDate]);
-
-  const canEdit = owner === 'shared' || owner === currentUser?.key;
-
-  async function loadPlans(date: string) {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/plans?date=${date}`);
-      const data = await res.json();
-      setPlans(data.plans || []);
-    } finally {
-      setLoading(false);
-    }
+  async function refreshData() {
+    const { start, end } = calendarRange(calendarMonth);
+    const [plansRes, calendarPlansRes, activitiesRes, calendarActivitiesRes, oldTemplatesRes, mealsRes, savedActivitiesRes, dayPlansRes, weekPlansRes] = await Promise.all([
+      fetch(`/api/plans?date=${selectedDate}`),
+      fetch(`/api/plans?start=${start}&end=${end}`),
+      fetch(`/api/activities?date=${selectedDate}`),
+      fetch(`/api/activities?start=${start}&end=${end}`),
+      fetch('/api/templates'),
+      fetch('/api/meals'),
+      fetch('/api/saved-activities'),
+      fetch('/api/day-plans'),
+      fetch('/api/week-plans'),
+    ]);
+    const [plansData, calendarPlansData, activitiesData, calendarActivitiesData, oldTemplatesData, mealsData, savedActivitiesData, dayPlansData, weekPlansData] = await Promise.all([
+      plansRes.json(), calendarPlansRes.json(), activitiesRes.json(), calendarActivitiesRes.json(), oldTemplatesRes.json(), mealsRes.json(), savedActivitiesRes.json(), dayPlansRes.json(), weekPlansRes.json(),
+    ]);
+    setPlans(plansData.plans || []);
+    setCalendarPlans(calendarPlansData.plans || []);
+    setActivities(activitiesData.activities || []);
+    setCalendarActivities(calendarActivitiesData.activities || []);
+    setOldDayTemplates(oldTemplatesData.templates || []);
+    setSavedMeals(mealsData.meals || []);
+    setSavedActivities(savedActivitiesData.activities || []);
+    setDayPlans(dayPlansData.dayPlans || []);
+    setWeekPlans(weekPlansData.weekPlans || []);
   }
 
-  async function loadTemplates() {
-    const res = await fetch('/api/templates');
-    const data = await res.json();
-    setTemplates(data.templates || []);
-  }
-
-  async function loadActivities(date: string) {
-    const res = await fetch(`/api/activities?date=${date}`);
-    const data = await res.json();
-    setActivities(data.activities || []);
+  function showToast(text: string, type: 'good' | 'bad' = 'good') {
+    const id = Date.now();
+    setToast({ id, text, type });
+    window.setTimeout(() => setToast((active) => (active?.id === id ? null : active)), 2600);
   }
 
   function login() {
     const found = USERS.find((user) => user.key === loginName && user.password === password.trim());
-    if (!found) {
-      setLoginError('Fel namn eller kod. Testa igen.');
-      return;
-    }
-
+    if (!found) return setLoginError('Fel namn eller kod. Testa igen.');
     const user = { name: found.name, key: found.key } satisfies LoginUser;
-    localStorage.setItem('health-user', JSON.stringify(user));
+    window.localStorage.setItem('health-user', JSON.stringify(user));
     setCurrentUser(user);
     setLoginError('');
   }
+  function logout() { window.localStorage.removeItem('health-user'); setCurrentUser(null); setPassword(''); }
 
-  function logout() {
-    localStorage.removeItem('health-user');
-    setCurrentUser(null);
-    setPassword('');
-  }
-
-  function updateInMemory(updater: (mealPlan: MealPlan) => MealPlan) {
+  function patchPlan(updater: (mealPlan: MealPlan) => MealPlan) {
     const updated = updater(plan);
     setPlans((current) => [...current.filter((item) => item.owner !== owner), updated]);
   }
-
-  function updateMeal(mealId: string, patch: Partial<Meal>) {
-    updateInMemory((mealPlan) => ({
-      ...mealPlan,
-      meals: mealPlan.meals.map((meal) => (meal.id === mealId ? { ...meal, ...patch } : meal)),
-    }));
+  function updateMeal(mealId: string, patch: Partial<Meal>) { patchPlan((p) => ({ ...p, meals: p.meals.map((meal) => meal.id === mealId ? cleanMeal({ ...meal, ...patch }) : meal) })); }
+  function addMeal(meal?: Partial<Meal>) { patchPlan((p) => ({ ...p, meals: [...p.meals, cleanMeal({ id: uid(), title: meal?.title || 'Ny måltid', time: meal?.time || '', items: meal?.items || [], notes: meal?.notes || '', completedBy: {} })] })); }
+  function createMealFromDraft() {
+    if (!mealDraft.title.trim()) return showToast('Skriv ett namn på måltiden först, till exempel Förmiddags mellanmål.', 'bad');
+    addMeal({ title: mealDraft.title, time: mealDraft.time, items: parseItems(mealDraft.item), notes: mealDraft.notes });
+    setMealDraft({ title: '', time: '', item: '', notes: '' });
+    showToast('Måltiden är tillagd i dagens plan.');
   }
-
-  function addMeal() {
-    updateInMemory((mealPlan) => ({
-      ...mealPlan,
-      meals: [...mealPlan.meals, { id: uid(), title: 'Ny måltid', items: [], completedBy: {} }],
-    }));
-  }
-
-  function removeMeal(mealId: string) {
-    updateInMemory((mealPlan) => ({ ...mealPlan, meals: mealPlan.meals.filter((meal) => meal.id !== mealId) }));
-  }
-
-  function toggleComplete(mealId: string, user: UserKey) {
-    updateInMemory((mealPlan) => ({
-      ...mealPlan,
-      meals: mealPlan.meals.map((meal) =>
-        meal.id === mealId ? { ...meal, completedBy: { ...meal.completedBy, [user]: !meal.completedBy[user] } } : meal
-      ),
-    }));
-  }
+  function removeMeal(mealId: string) { patchPlan((p) => ({ ...p, meals: p.meals.filter((meal) => meal.id !== mealId) })); }
+  function toggleMeal(mealId: string) { if (!currentUser) return; patchPlan((p) => ({ ...p, meals: p.meals.map((meal) => meal.id === mealId ? { ...meal, completedBy: { ...meal.completedBy, [currentUser.key]: !meal.completedBy[currentUser.key] } } : meal) })); }
 
   async function savePlan(nextPlan = plan) {
-    const payload = { ...nextPlan, date: selectedDate };
-    const res = await fetch(nextPlan._id ? `/api/plans/${nextPlan._id}` : '/api/plans', {
-      method: nextPlan._id ? 'PATCH' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      flash('Kunde inte spara matplanen.');
-      return;
-    }
-
-    await loadPlans(selectedDate);
-    flash('Matplanen är sparad.');
+    const payload = { ...nextPlan, date: selectedDate, meals: nextPlan.meals.map(cleanMeal) };
+    const response = await fetch(payload._id ? `/api/plans/${payload._id}` : '/api/plans', { method: payload._id ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    if (!response.ok) return showToast('Kunde inte spara planen.', 'bad');
+    await refreshData();
+    showToast('Dagens matplan är sparad.');
   }
-
-  async function deletePlan() {
-    if (!plan._id) return;
-    await fetch(`/api/plans/${plan._id}`, { method: 'DELETE' });
-    await loadPlans(selectedDate);
-    flash('Dagens plan är rensad.');
-  }
-
-  async function saveAsTemplate() {
+  async function deletePlan() { if (!plan._id) return; const response = await fetch(`/api/plans/${plan._id}`, { method: 'DELETE' }); if (!response.ok) return showToast('Kunde inte rensa planen.', 'bad'); await refreshData(); showToast('Dagens matplan är rensad.'); }
+  async function saveMealTemplate(meal: Meal) {
     if (!currentUser) return;
-    const res = await fetch('/api/templates', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ owner: plan.owner, title: plan.title, length: plan.length, meals: plan.meals, createdBy: currentUser.key }),
-    });
+    const cleaned = cleanMeal(meal);
+    if (!cleaned.items.length) return showToast('Lägg in innehåll innan du sparar måltiden.', 'bad');
+    const response = await fetch('/api/meals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ owner, title: cleaned.title, time: cleaned.time, items: cleaned.items, notes: cleaned.notes, createdBy: currentUser.key }) });
+    if (!response.ok) return showToast('Kunde inte spara måltiden.', 'bad');
+    await refreshData();
+    showToast(`${cleaned.title} sparad i måltidsbanken.`);
+  }
+  async function updateMealTemplate(meal: SavedMeal, patch: Partial<SavedMeal>) {
+    if (!meal._id) return;
+    const response = await fetch(`/api/meals/${meal._id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
+    if (!response.ok) return showToast('Kunde inte uppdatera måltiden.', 'bad');
+    await refreshData();
+    showToast('Måltiden är uppdaterad i banken.');
+  }
+  async function deleteMealTemplate(id?: string) { if (!id) return; await fetch(`/api/meals/${id}`, { method: 'DELETE' }); await refreshData(); showToast('Måltiden är borttagen.'); }
 
-    if (!res.ok) {
-      flash('Kunde inte spara matplanen.');
-      return;
+  async function addActivity(activity?: Partial<SavedActivity>) {
+    if (!currentUser) return;
+    const source = activity || activityDraft;
+    if (!source.title?.trim()) return;
+    const response = await fetch('/api/activities', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ owner, date: selectedDate, title: source.title, time: source.time, comment: source.comment, completedBy: {}, createdBy: currentUser.key }) });
+    if (!response.ok) return showToast('Kunde inte lägga till aktivitet.', 'bad');
+    if (!activity) setActivityDraft({ title: '', time: '', comment: '' });
+    await refreshData();
+    showToast('Aktiviteten är tillagd.');
+  }
+  async function updateActivity(activity: Activity, patch: Partial<Activity>) { if (!activity._id) return; await fetch(`/api/activities/${activity._id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) }); await refreshData(); }
+  async function deleteActivity(id?: string) { if (!id) return; await fetch(`/api/activities/${id}`, { method: 'DELETE' }); await refreshData(); showToast('Aktiviteten är borttagen.'); }
+  async function saveActivityTemplate(activity: Activity) {
+    if (!currentUser) return;
+    const response = await fetch('/api/saved-activities', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ owner, title: activity.title, time: activity.time, comment: activity.comment, createdBy: currentUser.key }) });
+    if (!response.ok) return showToast('Kunde inte spara aktiviteten.', 'bad');
+    await refreshData();
+    showToast(`${activity.title} sparad i aktivitetsbanken.`);
+  }
+  async function deleteSavedActivity(id?: string) { if (!id) return; await fetch(`/api/saved-activities/${id}`, { method: 'DELETE' }); await refreshData(); showToast('Aktiviteten är borttagen från banken.'); }
+
+  async function saveDayPlan(kind: DayPlanKind) {
+    if (!currentUser) return;
+    const title = window.prompt('Namn på dagsplanen?', `${plan.title} · ${formatDate(selectedDate)}`)?.trim();
+    if (!title) return;
+    const response = await fetch('/api/day-plans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ owner, title, kind, meals: kind === 'training' ? [] : plan.meals.map(cleanMeal), activities: kind === 'food' ? [] : ownerActivities.map((a) => cleanSavedActivity({ ...a, owner, createdBy: currentUser.key })), createdBy: currentUser.key }) });
+    if (!response.ok) return showToast('Kunde inte spara dagsplanen.', 'bad');
+    await refreshData();
+    showToast('Dagsplanen är sparad.');
+  }
+  async function useDayPlan(dayPlan: SavedDayPlan) {
+    const tasks: Promise<unknown>[] = [];
+    if (dayPlan.kind !== 'training') tasks.push(savePlan({ ...plan, title: dayPlan.title, length: 'day', date: selectedDate, meals: cloneMeals(dayPlan.meals) }));
+    if (currentUser && dayPlan.kind !== 'food') {
+      dayPlan.activities.forEach((activity) => tasks.push(fetch('/api/activities', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ owner, date: selectedDate, title: activity.title, time: activity.time, comment: activity.comment, completedBy: {}, createdBy: currentUser.key }) })));
     }
-
-    await loadTemplates();
-    flash('Sparad som återanvändbar matplan.');
+    await Promise.all(tasks);
+    await refreshData();
+    showToast('Dagsplanen är inlagd på valt datum.');
   }
+  async function deleteDayPlan(id?: string) { if (!id) return; await fetch(`/api/day-plans/${id}`, { method: 'DELETE' }); await refreshData(); showToast('Dagsplanen är borttagen.'); }
 
-  async function useTemplate(template: SavedMealPlan) {
-    const nextPlan: MealPlan = {
-      ...plan,
-      title: template.title,
-      length: template.length,
-      meals: cloneMeals(template.meals),
-      date: selectedDate,
-    };
-    setPlans((current) => [...current.filter((item) => item.owner !== owner), nextPlan]);
-    await savePlan(nextPlan);
-  }
-
-  async function deleteTemplate(id?: string) {
-    if (!id) return;
-    await fetch(`/api/templates/${id}`, { method: 'DELETE' });
-    await loadTemplates();
-  }
-
-  async function addActivity() {
-    if (!currentUser || !activityTitle.trim()) return;
-    const res = await fetch('/api/activities', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        owner,
-        date: selectedDate,
-        title: activityTitle,
-        time: activityTime,
-        comment: activityComment,
-        completedBy: {},
-        createdBy: currentUser.key,
-      }),
+  async function saveWeekPlan() {
+    if (!currentUser) return;
+    const title = window.prompt('Namn på veckoplanen?', `Veckoplan från ${formatDate(mondayOf(selectedDate))}`)?.trim();
+    if (!title) return;
+    const start = mondayOf(selectedDate);
+    const end = addDays(start, 6);
+    const [plansRes, activitiesRes] = await Promise.all([fetch(`/api/plans?start=${start}&end=${end}&owner=${owner}`), fetch(`/api/activities?start=${start}&end=${end}&owner=${owner}`)]);
+    const [plansData, activitiesData] = await Promise.all([plansRes.json(), activitiesRes.json()]);
+    const sourcePlans: MealPlan[] = plansData.plans || [];
+    const sourceActivities: Activity[] = activitiesData.activities || [];
+    const days: WeekDayTemplate[] = weekDates(selectedDate).map((date, index) => {
+      const sourcePlan = sourcePlans.find((p) => p.date === date) || emptyPlan(owner, date);
+      const dayActivities = sourceActivities.filter((a) => a.date === date).map((a) => cleanSavedActivity({ ...a, owner, createdBy: currentUser.key }));
+      return { weekday: index + 1, label: weekdays[index], meals: cloneMeals(sourcePlan.meals), activities: dayActivities };
     });
-
-    if (res.ok) {
-      setActivityTitle('');
-      setActivityTime('');
-      setActivityComment('');
-      await loadActivities(selectedDate);
-      flash('Aktiviteten är tillagd.');
+    const response = await fetch('/api/week-plans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ owner, title, description: '', days, createdBy: currentUser.key }) });
+    if (!response.ok) return showToast('Kunde inte spara veckoplanen.', 'bad');
+    await refreshData();
+    showToast('Veckoplanen är sparad.');
+  }
+  async function applyWeekPlan(weekPlan: SavedWeekPlan) {
+    if (!currentUser) return;
+    const start = mondayOf(selectedDate);
+    for (const day of weekPlan.days) {
+      const date = addDays(start, day.weekday - 1);
+      const existingRes = await fetch(`/api/plans?date=${date}&owner=${owner}`);
+      const existingData = await existingRes.json();
+      const existing = (existingData.plans || [])[0] as MealPlan | undefined;
+      const payload = { ...(existing || emptyPlan(owner, date)), owner, title: `${weekPlan.title} · ${day.label}`, date, length: 'week' as PlanLength, meals: cloneMeals(day.meals) };
+      await fetch(existing?._id ? `/api/plans/${existing._id}` : '/api/plans', { method: existing?._id ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      for (const activity of day.activities) {
+        await fetch('/api/activities', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ owner, date, title: activity.title, time: activity.time, comment: activity.comment, completedBy: {}, createdBy: currentUser.key }) });
+      }
     }
+    await refreshData();
+    showToast('Veckoplanen är utlagd i kalendern.');
   }
+  async function deleteWeekPlan(id?: string) { if (!id) return; await fetch(`/api/week-plans/${id}`, { method: 'DELETE' }); await refreshData(); showToast('Veckoplanen är borttagen.'); }
 
-  async function toggleActivity(activity: Activity, user: UserKey) {
-    if (!activity._id) return;
-    await fetch(`/api/activities/${activity._id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ completedBy: { ...activity.completedBy, [user]: !activity.completedBy[user] } }),
-    });
-    await loadActivities(selectedDate);
-  }
-
-  async function deleteActivity(id?: string) {
-    if (!id) return;
-    await fetch(`/api/activities/${id}`, { method: 'DELETE' });
-    await loadActivities(selectedDate);
-  }
-
-  function flash(text: string) {
-    setMessage(text);
-    setTimeout(() => setMessage(''), 2600);
-  }
-
-  if (!currentUser) {
-    return <LoginScreen loginName={loginName} setLoginName={setLoginName} password={password} setPassword={setPassword} login={login} loginError={loginError} />;
-  }
-
-  const ownerTemplates = templates.filter((template) => template.owner === owner);
+  if (!currentUser) return <LoginScreen loginName={loginName} setLoginName={setLoginName} password={password} setPassword={setPassword} login={login} loginError={loginError} />;
 
   return (
-    <main className="min-h-screen bg-[#121212] text-white">
-      <div className="grid min-h-screen xl:grid-cols-[280px_minmax(0,1fr)_390px]">
-        <SideNav currentUser={currentUser} owner={owner} logout={logout} />
+    <main className="min-h-screen overflow-hidden text-white">
+      <Background />
+      <div className="relative z-10 mx-auto grid max-w-[1760px] gap-5 p-3 md:p-5 xl:grid-cols-[300px_minmax(0,1fr)]">
+        <Sidebar owner={owner} currentUser={currentUser} logout={logout} />
+        <section className="min-w-0 space-y-5">
+          <Hero owner={owner} currentUser={currentUser} selectedDate={selectedDate} setSelectedDate={(date) => { setSelectedDate(date); setCalendarMonth(monthStart(date)); }} plan={plan} activities={ownerActivities} />
+          <TabBar tab={tab} setTab={setTab} />
+          {toast && <ToastCard toast={toast} />}
+          {isBusy && <div className="rounded-3xl border border-slate-200 bg-white/80 px-5 py-4 text-sm font-black text-slate-500">Laddar...</div>}
 
-        <section className="border-x border-white/5 px-4 py-5 md:px-8 md:py-8 xl:px-12">
-          <TopBar selectedDate={selectedDate} setSelectedDate={setSelectedDate} owner={owner} />
-          {message && <div className="mt-5 rounded-[1.4rem] bg-amber-300 px-5 py-4 font-black text-zinc-950 shadow-[0_16px_50px_rgba(251,191,36,0.25)]">{message}</div>}
-          {loading && <div className="mt-5 rounded-[1.4rem] bg-white/10 px-5 py-4 font-bold text-white/60">Laddar...</div>}
+          {tab === 'today' && (
+            <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_430px]">
+              <section className="space-y-5">
+                <WeekStrip dates={selectedWeek} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
+                <PlannerHeader plan={plan} canEdit={canEdit} onTitle={(title) => patchPlan((p) => ({ ...p, title }))} onLength={(length) => patchPlan((p) => ({ ...p, length }))} onSave={() => savePlan()} onDelete={deletePlan} onSaveFoodDay={() => saveDayPlan('food')} onSaveFullDay={() => saveDayPlan('full')} onSaveWeek={saveWeekPlan} onAddMeal={() => addMeal()} />
+                <MealComposer draft={mealDraft} setDraft={setMealDraft} canEdit={canEdit} onCreate={createMealFromDraft} />
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {plan.meals.map((meal) => <MealCard key={meal.id} meal={meal} canEdit={canEdit} currentUser={currentUser.key} onUpdate={(patch) => updateMeal(meal.id, patch)} onRemove={() => removeMeal(meal.id)} onToggle={() => toggleMeal(meal.id)} onSaveMeal={() => saveMealTemplate(meal)} />)}
+                </div>
+              </section>
+              <aside className="space-y-5 2xl:sticky 2xl:top-5 2xl:self-start">
+                <ProgressPanel plan={plan} activities={ownerActivities} currentUser={currentUser.key} />
+                <TrainingPanel activities={ownerActivities} canEdit={canEdit} currentUser={currentUser.key} draft={activityDraft} setDraft={setActivityDraft} addActivity={() => addActivity()} updateActivity={updateActivity} deleteActivity={deleteActivity} saveActivity={saveActivityTemplate} saveTrainingDay={() => saveDayPlan('training')} />
+              </aside>
+            </div>
+          )}
 
-          <HeroPanel owner={owner} plan={plan} selectedDate={selectedDate} currentUser={currentUser} />
+          {tab === 'calendar' && <CalendarPanel calendarMonth={calendarMonth} setCalendarMonth={setCalendarMonth} days={calendarDays} selectedDate={selectedDate} selectDate={(date) => { setSelectedDate(date); setTab('today'); }} weekPlans={ownerWeekPlans} applyWeekPlan={applyWeekPlan} deleteWeekPlan={deleteWeekPlan} />}
 
-          <FoodPlanner
-            plan={plan}
-            canEdit={canEdit}
-            currentUser={currentUser.key}
-            onTitle={(title) => updateInMemory((mealPlan) => ({ ...mealPlan, title }))}
-            onLength={(length) => updateInMemory((mealPlan) => ({ ...mealPlan, length }))}
-            onUpdateMeal={updateMeal}
-            onAddMeal={addMeal}
-            onRemoveMeal={removeMeal}
-            onToggleComplete={toggleComplete}
-            onSave={() => savePlan()}
-            onDelete={deletePlan}
-            onSaveAsTemplate={saveAsTemplate}
-          />
+          {tab === 'bank' && <BankPanel meals={ownerSavedMeals} activities={ownerSavedActivities} dayPlans={ownerDayPlans} weekPlans={ownerWeekPlans} oldDayTemplates={ownerOldDayTemplates} addSavedMeal={(meal) => addMeal({ title: meal.title, time: meal.time, items: meal.items, notes: meal.notes })} updateSavedMeal={updateMealTemplate} addSavedActivity={(activity) => addActivity(activity)} useDayPlan={useDayPlan} applyWeekPlan={applyWeekPlan} deleteMeal={deleteMealTemplate} deleteSavedActivity={deleteSavedActivity} deleteDayPlan={deleteDayPlan} deleteWeekPlan={deleteWeekPlan} />}
+
+          {tab === 'training' && <TrainingPanel activities={ownerActivities} canEdit={canEdit} currentUser={currentUser.key} draft={activityDraft} setDraft={setActivityDraft} addActivity={() => addActivity()} updateActivity={updateActivity} deleteActivity={deleteActivity} saveActivity={saveActivityTemplate} saveTrainingDay={() => saveDayPlan('training')} large />}
         </section>
-
-        <aside className="space-y-5 px-4 py-5 md:px-8 md:py-8 xl:px-7">
-          <ProgressPanel plan={plan} activities={ownerActivities} />
-          <TrainingPanel
-            owner={owner}
-            currentUser={currentUser.key}
-            activities={ownerActivities}
-            title={activityTitle}
-            time={activityTime}
-            comment={activityComment}
-            setTitle={setActivityTitle}
-            setTime={setActivityTime}
-            setComment={setActivityComment}
-            addActivity={addActivity}
-            toggleActivity={toggleActivity}
-            deleteActivity={deleteActivity}
-          />
-          <SavedPlansPanel templates={ownerTemplates} onUse={useTemplate} onDelete={deleteTemplate} />
-          {owner === 'shared' && <BothPlansPanel plans={allPlans} />}
-        </aside>
       </div>
     </main>
   );
 }
 
-function LoginScreen({ loginName, setLoginName, password, setPassword, login, loginError }: {
-  loginName: UserKey;
-  setLoginName: (value: UserKey) => void;
-  password: string;
-  setPassword: (value: string) => void;
-  login: () => void;
-  loginError: string;
-}) {
+function buildCalendarDays(monthValue: string, plans: MealPlan[], activities: Activity[], user: UserKey): CalendarDay[] {
+  const { start } = calendarRange(monthValue);
+  const activeMonth = toDate(monthStart(monthValue)).getMonth();
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = addDays(start, index);
+    const dayPlan = plans.find((plan) => plan.date === date);
+    const dayActivities = activities.filter((activity) => activity.date === date);
+    return {
+      date,
+      inMonth: toDate(date).getMonth() === activeMonth,
+      day: toDate(date).getDate(),
+      hasMeals: Boolean(dayPlan && mealTotal(dayPlan) > 0),
+      hasActivities: dayActivities.length > 0,
+      completedMeals: dayPlan ? completedMeals(dayPlan, user) : 0,
+      totalMeals: dayPlan ? mealTotal(dayPlan) : 0,
+      completedActivities: completedActivities(dayActivities, user),
+      totalActivities: dayActivities.length,
+    };
+  });
+}
+
+
+function Background() {
   return (
-    <main className="grid min-h-screen place-items-center bg-[#121212] px-4 py-10 text-white">
-      <section className="grid w-full max-w-6xl overflow-hidden rounded-[2rem] bg-[#202020] shadow-[0_40px_120px_rgba(0,0,0,0.45)] lg:grid-cols-[1.15fr_0.85fr]">
-        <div className="relative p-8 md:p-12">
-          <div className="absolute right-8 top-8 hidden h-32 w-32 rounded-full bg-amber-300 blur-3xl md:block" />
-          <p className="text-sm font-black uppercase tracking-[0.35em] text-amber-300">Health 2026</p>
-          <h1 className="mt-8 max-w-2xl text-5xl font-black leading-[0.9] tracking-tight md:text-7xl">Nu tar vi hälsan till nästa nivå.</h1>
-          <p className="mt-6 max-w-xl text-lg leading-8 text-white/55">Matplaner, träning, checkmarks och sparade upplägg för Robert & Erika.</p>
-          <div className="mt-10 grid gap-4 sm:grid-cols-3">
-            {['Matplan', 'Träning', 'Hälsotips'].map((item) => (
-              <div key={item} className="rounded-[1.5rem] bg-[#2b2b2b] p-5 ring-1 ring-white/5">
-                <p className="text-3xl">✓</p>
-                <p className="mt-5 font-black">{item}</p>
+    <div aria-hidden="true" className="fixed inset-0 overflow-hidden bg-[#07080c]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(52,211,153,0.22),transparent_34%),radial-gradient(circle_at_80%_10%,rgba(99,102,241,0.22),transparent_30%),radial-gradient(circle_at_60%_90%,rgba(245,158,11,0.16),transparent_32%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.055)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.055)_1px,transparent_1px)] bg-[size:52px_52px] opacity-25" />
+      <div className="absolute left-1/2 top-0 h-px w-[70vw] -translate-x-1/2 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+      <div className="absolute bottom-[-22rem] left-1/2 h-[42rem] w-[42rem] -translate-x-1/2 rounded-full bg-emerald-400/10 blur-3xl" />
+    </div>
+  );
+}
+
+function LoginScreen({ loginName, setLoginName, password, setPassword, login, loginError }: { loginName: UserKey; setLoginName: (value: UserKey) => void; password: string; setPassword: (value: string) => void; login: () => void; loginError: string }) {
+  return (
+    <main className="min-h-screen text-white">
+      <Background />
+      <section className="relative z-10 mx-auto grid min-h-screen max-w-7xl place-items-center px-4 py-8">
+        <div className="grid w-full overflow-hidden rounded-[2.75rem] border border-white/10 bg-white/[0.06] shadow-[0_40px_140px_rgba(0,0,0,0.45)] backdrop-blur-2xl lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="relative min-h-[640px] overflow-hidden p-8 md:p-12">
+            <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-emerald-400/30 blur-3xl" />
+            <div className="absolute bottom-8 left-8 right-8 rounded-[2rem] border border-white/10 bg-black/25 p-5 backdrop-blur-xl md:left-auto md:w-96">
+              <p className="text-xs font-black uppercase tracking-[0.32em] text-white/40">Today flow</p>
+              <div className="mt-4 space-y-3">
+                <PreviewRow time="08:00" title="Frukost" meta="Ägg, kaffe, grapefruit" done />
+                <PreviewRow time="12:00" title="Lunch" meta="Meal prep · protein" />
+                <PreviewRow time="18:30" title="Gym" meta="Push session · 55 min" />
               </div>
-            ))}
+            </div>
+            <div className="relative max-w-3xl">
+              <div className="inline-flex rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-[0.28em] text-emerald-200 backdrop-blur-xl">HealthApp 2026</div>
+              <h1 className="mt-8 text-6xl font-black leading-[0.88] tracking-[-0.08em] text-white md:text-8xl">Your week.<br />Planned clean.</h1>
+              <p className="mt-8 max-w-xl text-lg font-semibold leading-8 text-white/60">En privat dashboard för måltider, träning, sparade mallar, veckoplaner och dagliga checkar.</p>
+            </div>
           </div>
-        </div>
-        <div className="bg-[#272727] p-6 md:p-10">
-          <div className="rounded-[1.8rem] bg-[#181818] p-6 ring-1 ring-white/10 md:p-8">
-            <h2 className="text-3xl font-black">Logga in</h2>
-            <div className="mt-6 space-y-4">
-              <select value={loginName} onChange={(event) => setLoginName(event.target.value as UserKey)} className="w-full rounded-2xl border-0 bg-[#2f2f2f] px-4 py-4 font-bold text-white outline-none ring-1 ring-white/10 focus:ring-4 focus:ring-amber-300/30">
-                <option value="robert">Robert</option>
-                <option value="erika">Erika</option>
-              </select>
-              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && login()} className="w-full rounded-2xl border-0 bg-[#2f2f2f] px-4 py-4 font-bold text-white outline-none ring-1 ring-white/10 focus:ring-4 focus:ring-amber-300/30" placeholder="Kod" />
-              {loginError && <p className="rounded-2xl bg-rose-500/15 px-4 py-3 font-bold text-rose-100">{loginError}</p>}
-              <button onClick={login} className="w-full rounded-2xl bg-amber-300 px-5 py-4 font-black text-zinc-950 transition hover:-translate-y-0.5 hover:bg-amber-200">Öppna appen</button>
+          <div className="flex items-center border-t border-white/10 bg-white/[0.08] p-5 md:p-10 lg:border-l lg:border-t-0">
+            <div className="w-full rounded-[2rem] border border-white/10 bg-white/90 p-6 text-slate-950 shadow-2xl md:p-8">
+              <p className="text-xs font-black uppercase tracking-[0.32em] text-emerald-600">Logga in</p>
+              <h2 className="mt-3 text-4xl font-black tracking-[-0.07em]">Välj profil</h2>
+              <div className="mt-8 grid grid-cols-2 gap-3">
+                <button onClick={() => setLoginName('robert')} className={loginName === 'robert' ? primaryButton : softButton}>Robert</button>
+                <button onClick={() => setLoginName('erika')} className={loginName === 'erika' ? primaryButton : softButton}>Erika</button>
+              </div>
+              <input className={`${input} mt-4`} type="password" value={password} onChange={(event) => setPassword(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && login()} placeholder="Kod" />
+              {loginError && <p className="mt-3 text-sm font-black text-rose-600">{loginError}</p>}
+              <button onClick={login} className={`${greenButton} mt-5 w-full`}>Öppna dashboard</button>
             </div>
           </div>
         </div>
@@ -399,285 +413,477 @@ function LoginScreen({ loginName, setLoginName, password, setPassword, login, lo
   );
 }
 
-function SideNav({ currentUser, owner, logout }: { currentUser: LoginUser; owner: PlanOwner; logout: () => void }) {
-  const links = [
-    { href: '/', label: 'Gemensam', key: 'shared' },
-    { href: '/robert', label: 'Robert', key: 'robert' },
-    { href: '/erika', label: 'Erika', key: 'erika' },
-    { href: '/tips', label: 'Hälsotips', key: 'tips' },
-  ];
-
+function Sidebar({ owner, currentUser, logout }: { owner: PlanOwner; currentUser: LoginUser; logout: () => void }) {
   return (
-    <aside className="sticky top-0 z-20 border-b border-white/5 bg-[#242424] p-4 xl:h-screen xl:border-b-0 xl:p-6">
-      <div className="flex items-center justify-between gap-4 xl:block">
-        <Link href="/" className="flex items-center gap-3 text-2xl font-black tracking-tight">
-          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-amber-300 text-zinc-950">⚡</span>
-          Healthodo
-        </Link>
-        <button onClick={logout} className="rounded-2xl bg-white/10 px-4 py-3 text-sm font-black text-white/80 xl:hidden">Ut</button>
+    <aside className="xl:sticky xl:top-5">
+      <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.08] p-3 text-white shadow-[0_28px_100px_rgba(0,0,0,0.30)] backdrop-blur-2xl">
+        <div className="rounded-[1.65rem] bg-white/[0.08] p-5 ring-1 ring-white/10">
+          <div className="flex items-center gap-3">
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-400 text-xl font-black text-slate-950">H</div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-white/40">HealthApp</p>
+              <h2 className="text-2xl font-black tracking-[-0.07em]">2026</h2>
+            </div>
+          </div>
+          <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-200">Workspace</p>
+            <p className="mt-2 text-lg font-black">{ownerLabel[owner]}</p>
+            <p className="mt-1 text-sm font-semibold text-white/50">Inloggad som {currentUser.name}</p>
+          </div>
+        </div>
+        <nav className="mt-3 space-y-2 rounded-[1.65rem] bg-black/20 p-3 ring-1 ring-white/10">
+          <NavLink href="/" icon="◈" label="Gemensam" active={owner === 'shared'} />
+          <NavLink href="/robert" icon="R" label="Robert" active={owner === 'robert'} />
+          <NavLink href="/erika" icon="E" label="Erika" active={owner === 'erika'} />
+          <NavLink href="/tips" icon="✦" label="Tips" active={false} />
+        </nav>
+        <button onClick={logout} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 text-sm font-black text-white/70 transition hover:bg-white/[0.12] hover:text-white">Logga ut</button>
       </div>
-
-      <div className="mt-6 hidden rounded-[1.5rem] bg-[#181818] p-4 ring-1 ring-white/5 xl:block">
-        <p className="text-xs font-black uppercase tracking-[0.25em] text-white/35">Inloggad</p>
-        <p className="mt-2 text-2xl font-black">{currentUser.name}</p>
-      </div>
-
-      <nav className="mt-5 grid grid-cols-4 gap-2 xl:grid-cols-1">
-        {links.map((link) => {
-          const active = link.key === owner || (link.key === 'tips' && false);
-          return (
-            <Link key={link.href} href={link.href} className={`rounded-[1.2rem] px-3 py-3 text-center text-sm font-black transition xl:text-left ${active ? 'bg-amber-300 text-zinc-950' : 'bg-transparent text-white/65 hover:bg-white/10 hover:text-white'}`}>
-              {link.label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      <button onClick={logout} className="mt-6 hidden w-full rounded-[1.2rem] bg-white/10 px-4 py-3 font-black text-white/70 transition hover:bg-white/15 xl:block">Logga ut</button>
     </aside>
   );
 }
 
-function TopBar({ selectedDate, setSelectedDate, owner }: { selectedDate: string; setSelectedDate: (value: string) => void; owner: PlanOwner }) {
-  const date = new Date(`${selectedDate}T12:00:00`);
-  const month = date.toLocaleDateString('sv-SE', { month: 'short' });
-  const day = date.getDate();
-
+function NavLink({ href, icon, label, active }: { href: string; icon: string; label: string; active: boolean }) {
   return (
-    <header className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-      <div className="flex items-center gap-5">
-        <div className="text-center font-black leading-none">
-          <p className="text-3xl capitalize text-amber-300">{month}</p>
-          <p className="text-5xl">{day}</p>
-        </div>
-        <div>
-          <p className="text-sm font-black uppercase tracking-[0.25em] text-white/35">{ownerLabel[owner]}</p>
-          <h1 className="mt-1 text-4xl font-black tracking-tight md:text-6xl">Plan för idag</h1>
-        </div>
-      </div>
-      <label className="rounded-[1.3rem] bg-[#242424] p-2 ring-1 ring-white/5">
-        <span className="px-2 text-[11px] font-black uppercase tracking-widest text-white/35">Datum</span>
-        <input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} className="block rounded-xl bg-[#181818] px-3 py-2 font-black text-white outline-none" />
-      </label>
-    </header>
+    <Link href={href} className={`group flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-black transition ${active ? 'bg-white text-slate-950 shadow-xl shadow-black/20' : 'text-white/60 hover:bg-white/[0.08] hover:text-white'}`}>
+      <span className={`grid h-9 w-9 place-items-center rounded-xl text-xs ${active ? 'bg-slate-950 text-white' : 'bg-white/10 text-white/60 group-hover:bg-white/15'}`}>{icon}</span>
+      {label}
+    </Link>
   );
 }
 
-function HeroPanel({ owner, plan, selectedDate, currentUser }: { owner: PlanOwner; plan: MealPlan; selectedDate: string; currentUser: LoginUser }) {
+function Hero({ owner, currentUser, selectedDate, setSelectedDate, plan, activities }: { owner: PlanOwner; currentUser: LoginUser; selectedDate: string; setSelectedDate: (date: string) => void; plan: MealPlan; activities: Activity[] }) {
+  const doneMeals = completedMeals(plan, currentUser.key);
+  const totalMeals = mealTotal(plan);
+  const doneActivities = completedActivities(activities, currentUser.key);
+  const totalActivities = activityTotal(activities);
   return (
-    <section className="mt-8 overflow-hidden rounded-[2rem] bg-[#202020] shadow-[0_30px_90px_rgba(0,0,0,0.25)] ring-1 ring-white/5">
-      <div className="grid lg:grid-cols-[1fr_260px]">
-        <div className="p-6 md:p-8">
-          <p className="text-sm font-black uppercase tracking-[0.28em] text-amber-300">{lengthLabel[plan.length]} · {selectedDate}</p>
-          <h2 className="mt-4 max-w-3xl text-4xl font-black leading-[0.95] tracking-tight md:text-6xl">{plan.title}</h2>
-          <p className="mt-5 max-w-2xl text-lg leading-8 text-white/50">{ownerIntro[owner]}</p>
-        </div>
-        <div className="grid place-items-stretch bg-[#2b2b2b] p-5">
-          <div className="rounded-[1.6rem] bg-[#181818] p-5 ring-1 ring-white/5">
-            <p className="text-sm font-black text-white/40">Dagens energi</p>
-            <p className="mt-4 text-5xl font-black text-amber-300">{countFoodItems(plan)}</p>
-            <p className="mt-2 text-sm font-bold text-white/45">matpunkter i planen</p>
-            <p className="mt-6 rounded-2xl bg-white/5 px-4 py-3 font-black text-white/70">{currentUser.name} är inne</p>
+    <section className="overflow-hidden rounded-[2.2rem] border border-white/10 bg-white/[0.09] p-4 text-white shadow-[0_28px_100px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_390px]">
+        <div className="relative overflow-hidden rounded-[1.8rem] bg-gradient-to-br from-white/[0.15] via-white/[0.08] to-emerald-400/[0.14] p-6 ring-1 ring-white/10 md:p-8">
+          <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-emerald-300/25 blur-3xl" />
+          <div className="relative">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase tracking-[0.26em] text-emerald-100">{ownerLabel[owner]} dashboard</span>
+              <span className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-white/50">{lengthLabel[plan.length]}</span>
+            </div>
+            <h1 className="mt-6 max-w-3xl text-5xl font-black leading-[0.92] tracking-[-0.08em] md:text-7xl">{plan.title}</h1>
+            <p className="mt-5 text-lg font-semibold capitalize text-white/50">{formatDate(selectedDate)} · {currentUser.name}</p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <input className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm font-black text-white outline-none [color-scheme:dark]" type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />
+              <button onClick={() => setSelectedDate(today())} className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-black text-white/75 transition hover:bg-white/15 hover:text-white">Idag</button>
+            </div>
           </div>
         </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+          <MetricCard title="Måltider" value={`${doneMeals}/${totalMeals}`} note="ätna idag" tone="green" />
+          <MetricCard title="Träning" value={`${doneActivities}/${totalActivities}`} note="aktiviteter klara" tone="blue" />
+        </div>
       </div>
     </section>
   );
 }
 
-function FoodPlanner({ plan, canEdit, currentUser, onTitle, onLength, onUpdateMeal, onAddMeal, onRemoveMeal, onToggleComplete, onSave, onDelete, onSaveAsTemplate }: {
-  plan: MealPlan;
-  canEdit: boolean;
-  currentUser: UserKey;
-  onTitle: (title: string) => void;
-  onLength: (length: PlanLength) => void;
-  onUpdateMeal: (mealId: string, patch: Partial<Meal>) => void;
-  onAddMeal: () => void;
-  onRemoveMeal: (mealId: string) => void;
-  onToggleComplete: (mealId: string, user: UserKey) => void;
-  onSave: () => void;
-  onDelete: () => void;
-  onSaveAsTemplate: () => void;
-}) {
+function MetricCard({ title, value, note, tone }: { title: string; value: string; note: string; tone: 'green' | 'blue' }) {
+  const glow = tone === 'green' ? 'from-emerald-300/24' : 'from-sky-300/22';
   return (
-    <section className="mt-6 rounded-[2rem] bg-[#202020] p-4 ring-1 ring-white/5 md:p-6">
-      <div className="grid gap-4 lg:grid-cols-[1fr_190px]">
-        <label>
-          <span className="mb-2 block text-xs font-black uppercase tracking-[0.24em] text-white/35">Namn på matplan</span>
-          <input disabled={!canEdit} value={plan.title} onChange={(event) => onTitle(event.target.value)} className="w-full rounded-[1.3rem] border-0 bg-[#2b2b2b] px-5 py-4 text-xl font-black text-white outline-none ring-1 ring-white/5 focus:ring-4 focus:ring-amber-300/20 disabled:text-white/35" placeholder="T.ex. Roberts ägg-vecka" />
-        </label>
-        <label>
-          <span className="mb-2 block text-xs font-black uppercase tracking-[0.24em] text-white/35">Typ</span>
-          <select disabled={!canEdit} value={plan.length} onChange={(event) => onLength(event.target.value as PlanLength)} className="w-full rounded-[1.3rem] border-0 bg-[#2b2b2b] px-5 py-4 font-black text-white outline-none ring-1 ring-white/5 focus:ring-4 focus:ring-amber-300/20 disabled:text-white/35">
-            <option value="day">1 dag</option>
-            <option value="week">1 vecka</option>
-            <option value="ongoing">Pågående</option>
-          </select>
-        </label>
-      </div>
-
-      <div className="mt-5 space-y-4">
-        {plan.meals.map((meal) => (
-          <article key={meal.id} className="group rounded-[1.6rem] bg-[#282828] p-4 ring-1 ring-white/5 transition hover:bg-[#303030] md:p-5">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-3">
-                  <input disabled={!canEdit} value={meal.title} onChange={(event) => onUpdateMeal(meal.id, { title: event.target.value })} className="w-full rounded-2xl border-0 bg-[#1b1b1b] px-4 py-3 text-lg font-black text-white outline-none ring-1 ring-white/5 focus:ring-4 focus:ring-amber-300/20 disabled:text-white/35" />
-                  {canEdit && <button onClick={() => onRemoveMeal(meal.id)} className="rounded-2xl bg-rose-500/10 px-3 py-3 text-sm font-black text-rose-200 ring-1 ring-rose-500/20">×</button>}
-                </div>
-                <textarea disabled={!canEdit} value={mealText(meal.items)} onChange={(event) => onUpdateMeal(meal.id, { items: parseItems(event.target.value) })} className="mt-3 min-h-24 w-full resize-y rounded-2xl border-0 bg-[#1b1b1b] px-4 py-3 font-semibold leading-7 text-white/80 outline-none ring-1 ring-white/5 focus:ring-4 focus:ring-amber-300/20 disabled:text-white/35" placeholder="Skriv med komma: 3 ägg, kaffe, grapefruit" />
-                {meal.items.length > 0 && (
-                  <ul className="mt-4 grid gap-2 sm:grid-cols-2">
-                    {meal.items.map((item, index) => (
-                      <li key={`${item}-${index}`} className="rounded-2xl bg-[#1b1b1b] px-4 py-3 font-bold text-white/75 ring-1 ring-white/5">{item}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2 lg:w-32 lg:grid-cols-1">
-                {(['robert', 'erika'] as UserKey[]).map((user) => (
-                  <button key={user} onClick={() => onToggleComplete(meal.id, user)} disabled={!canEdit && currentUser !== user} className={`rounded-2xl px-4 py-3 text-sm font-black transition ${meal.completedBy[user] ? 'bg-amber-300 text-zinc-950' : 'bg-[#1b1b1b] text-white/50 ring-1 ring-white/5 hover:text-white'}`}>
-                    {meal.completedBy[user] ? '✓ ' : ''}{user}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </article>
-        ))}
-      </div>
-
-      <div className="mt-5 grid gap-3 md:grid-cols-4">
-        {canEdit && <button onClick={onAddMeal} className="rounded-[1.2rem] bg-white/10 px-5 py-4 font-black text-white hover:bg-white/15">+ Måltid</button>}
-        {canEdit && <button onClick={onSave} className="rounded-[1.2rem] bg-amber-300 px-5 py-4 font-black text-zinc-950 hover:bg-amber-200">Spara plan</button>}
-        {canEdit && <button onClick={onSaveAsTemplate} className="rounded-[1.2rem] bg-emerald-400 px-5 py-4 font-black text-zinc-950 hover:bg-emerald-300">Spara mall</button>}
-        {canEdit && plan._id && <button onClick={onDelete} className="rounded-[1.2rem] bg-rose-500/15 px-5 py-4 font-black text-rose-100 ring-1 ring-rose-500/20">Rensa</button>}
-      </div>
-    </section>
-  );
-}
-
-function ProgressPanel({ plan, activities }: { plan: MealPlan; activities: Activity[] }) {
-  const robert = completionPercent(plan, 'robert');
-  const erika = completionPercent(plan, 'erika');
-  const doneActivities = activities.filter((activity) => activity.completedBy.robert || activity.completedBy.erika).length;
-
-  return (
-    <section className="rounded-[2rem] bg-[#242424] p-5 ring-1 ring-white/5">
-      <h3 className="text-2xl font-black">Status</h3>
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        <Stat label="Robert mat" value={`${robert}%`} />
-        <Stat label="Erika mat" value={`${erika}%`} />
-        <Stat label="Matpunkter" value={String(countFoodItems(plan))} />
-        <Stat label="Träning" value={`${doneActivities}/${activities.length}`} />
-      </div>
-    </section>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[1.3rem] bg-[#181818] p-4 ring-1 ring-white/5">
-      <p className="text-xs font-black uppercase tracking-wider text-white/35">{label}</p>
-      <p className="mt-2 text-3xl font-black text-amber-300">{value}</p>
+    <div className={`relative overflow-hidden rounded-[1.8rem] border border-white/10 bg-gradient-to-br ${glow} to-white/[0.06] p-5 shadow-2xl backdrop-blur-xl`}>
+      <p className="text-xs font-black uppercase tracking-[0.24em] text-white/40">{title}</p>
+      <p className="mt-3 text-5xl font-black tracking-[-0.08em]">{value}</p>
+      <p className="mt-2 text-sm font-bold text-white/50">{note}</p>
     </div>
   );
 }
 
-function TrainingPanel({ owner, currentUser, activities, title, time, comment, setTitle, setTime, setComment, addActivity, toggleActivity, deleteActivity }: {
-  owner: PlanOwner;
-  currentUser: UserKey;
-  activities: Activity[];
-  title: string;
-  time: string;
-  comment: string;
-  setTitle: (value: string) => void;
-  setTime: (value: string) => void;
-  setComment: (value: string) => void;
-  addActivity: () => void;
-  toggleActivity: (activity: Activity, user: UserKey) => void;
-  deleteActivity: (id?: string) => void;
-}) {
+function TabBar({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
+  const tabs: { id: Tab; label: string; icon: string }[] = [
+    { id: 'today', label: 'Dagens plan', icon: '☑' },
+    { id: 'calendar', label: 'Kalender', icon: '◷' },
+    { id: 'bank', label: 'Bank', icon: '▣' },
+    { id: 'training', label: 'Träning', icon: '↗' },
+  ];
   return (
-    <section className="rounded-[2rem] bg-[#242424] p-5 ring-1 ring-white/5">
-      <div className="flex items-start justify-between gap-3">
+    <div className="sticky top-3 z-20 rounded-[1.7rem] border border-white/10 bg-black/30 p-2 shadow-[0_20px_80px_rgba(0,0,0,0.28)] backdrop-blur-2xl">
+      <div className="grid gap-2 md:grid-cols-4">
+        {tabs.map((item) => (
+          <button key={item.id} onClick={() => setTab(item.id)} className={`flex items-center justify-center gap-2 rounded-[1.25rem] px-4 py-3 text-sm font-black transition ${tab === item.id ? 'bg-white text-slate-950 shadow-xl' : 'text-white/50 hover:bg-white/[0.08] hover:text-white'}`}>
+            <span>{item.icon}</span>{item.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WeekStrip({ dates, selectedDate, setSelectedDate }: { dates: string[]; selectedDate: string; setSelectedDate: (date: string) => void }) {
+  return (
+    <section className="grid gap-3 md:grid-cols-7">
+      {dates.map((date, index) => {
+        const active = date === selectedDate;
+        const parsed = toDate(date);
+        return (
+          <button key={date} onClick={() => setSelectedDate(date)} className={`group overflow-hidden rounded-[1.55rem] border p-4 text-left shadow-xl transition hover:-translate-y-0.5 ${active ? 'border-emerald-300/35 bg-emerald-300 text-slate-950 shadow-emerald-900/20' : 'border-white/10 bg-white/[0.08] text-white backdrop-blur-xl hover:bg-white/[0.12]'}`}>
+            <p className={`text-xs font-black uppercase tracking-[0.2em] ${active ? 'text-slate-700' : 'text-white/40'}`}>{weekdays[index]}</p>
+            <p className="mt-2 text-3xl font-black tracking-[-0.08em]">{parsed.getDate()}</p>
+            <p className={`mt-1 text-xs font-bold capitalize ${active ? 'text-slate-700' : 'text-white/40'}`}>{parsed.toLocaleDateString('sv-SE', { month: 'short' })}</p>
+          </button>
+        );
+      })}
+    </section>
+  );
+}
+
+function PlannerHeader({ plan, canEdit, onTitle, onLength, onSave, onDelete, onSaveFoodDay, onSaveFullDay, onSaveWeek, onAddMeal }: { plan: MealPlan; canEdit: boolean; onTitle: (title: string) => void; onLength: (length: PlanLength) => void; onSave: () => void; onDelete: () => void; onSaveFoodDay: () => void; onSaveFullDay: () => void; onSaveWeek: () => void; onAddMeal: () => void }) {
+  return (
+    <section className={`${card} p-5 md:p-6`}>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.25em] text-amber-300">Training</p>
-          <h3 className="mt-1 text-2xl font-black">Aktivitet</h3>
+          <p className="eyebrow">Meal planner</p>
+          <input disabled={!canEdit} className="mt-2 w-full border-0 bg-transparent text-4xl font-black tracking-[-0.08em] text-white outline-none placeholder:text-white/20 md:text-5xl" value={plan.title} onChange={(event) => onTitle(event.target.value)} />
+          <p className="mt-3 text-sm font-semibold text-white/40">Sätt upp måltider, spara dagen, eller bygg hela veckan som en mall.</p>
         </div>
-        <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white/45">{ownerLabel[owner]}</span>
+        <div className="grid gap-3">
+          <select disabled={!canEdit} className={darkInput} value={plan.length} onChange={(event) => onLength(event.target.value as PlanLength)}>
+            <option value="day">Dag</option>
+            <option value="week">Vecka</option>
+            <option value="ongoing">Pågående</option>
+          </select>
+          <button disabled={!canEdit} onClick={onSave} className={greenButton}>Spara dagens plan</button>
+        </div>
       </div>
-
-      <div className="mt-5 space-y-3">
-        <input value={title} onChange={(event) => setTitle(event.target.value)} className="w-full rounded-2xl border-0 bg-[#181818] px-4 py-3 font-bold text-white outline-none ring-1 ring-white/5 focus:ring-4 focus:ring-amber-300/20" placeholder="Running, dancing, gym..." />
-        <input value={time} onChange={(event) => setTime(event.target.value)} className="w-full rounded-2xl border-0 bg-[#181818] px-4 py-3 font-bold text-white outline-none ring-1 ring-white/5 focus:ring-4 focus:ring-amber-300/20" placeholder="Tid: 30 min / 18:00" />
-        <textarea value={comment} onChange={(event) => setComment(event.target.value)} className="min-h-20 w-full rounded-2xl border-0 bg-[#181818] px-4 py-3 font-semibold text-white outline-none ring-1 ring-white/5 focus:ring-4 focus:ring-amber-300/20" placeholder="Kommentar: lätt pass, stretch, känsla..." />
-        <button onClick={addActivity} className="w-full rounded-2xl bg-amber-300 px-4 py-3 font-black text-zinc-950 hover:bg-amber-200">+ Lägg till aktivitet</button>
-      </div>
-
-      <div className="mt-5 space-y-3">
-        {activities.length ? activities.map((activity) => (
-          <article key={activity._id} className="rounded-[1.4rem] bg-[#181818] p-4 ring-1 ring-white/5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h4 className="font-black">{activity.title}</h4>
-                {activity.time && <p className="mt-1 text-sm font-bold text-amber-300">{activity.time}</p>}
-                {activity.comment && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-white/45">{activity.comment}</p>}
-              </div>
-              <button onClick={() => deleteActivity(activity._id)} className="rounded-xl bg-white/5 px-3 py-2 text-xs font-black text-white/40 hover:text-rose-200">×</button>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              {(['robert', 'erika'] as UserKey[]).map((user) => (
-                <button key={user} onClick={() => toggleActivity(activity, user)} className={`rounded-xl px-3 py-2 text-xs font-black ${activity.completedBy[user] ? 'bg-amber-300 text-zinc-950' : 'bg-white/5 text-white/45'}`}>
-                  {activity.completedBy[user] ? '✓ ' : ''}{user}
-                </button>
-              ))}
-            </div>
-          </article>
-        )) : <p className="rounded-2xl bg-[#181818] px-4 py-4 font-bold text-white/35">Inga aktiviteter än. Lägg in dans, löpning eller något eget.</p>}
+      <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+        <button disabled={!canEdit} onClick={onAddMeal} className={softDarkButton}>+ Måltid</button>
+        <button disabled={!canEdit} onClick={onSaveFoodDay} className={softDarkButton}>Spara matdag</button>
+        <button disabled={!canEdit} onClick={onSaveFullDay} className={softDarkButton}>Spara hel dag</button>
+        <button disabled={!canEdit} onClick={onSaveWeek} className={primaryButton}>Spara vecka</button>
+        <button disabled={!canEdit || !plan._id} onClick={onDelete} className={dangerButton}>Rensa</button>
       </div>
     </section>
   );
 }
 
-function SavedPlansPanel({ templates, onUse, onDelete }: { templates: SavedMealPlan[]; onUse: (template: SavedMealPlan) => void; onDelete: (id?: string) => void }) {
+function MealComposer({ draft, setDraft, canEdit, onCreate }: { draft: { title: string; time: string; item: string; notes: string }; setDraft: (draft: { title: string; time: string; item: string; notes: string }) => void; canEdit: boolean; onCreate: () => void }) {
   return (
-    <section className="rounded-[2rem] bg-[#242424] p-5 ring-1 ring-white/5">
-      <h3 className="text-2xl font-black">Sparade matplaner</h3>
-      <p className="mt-2 text-sm leading-6 text-white/40">Spara ägg-vecka, smoothie-dag eller andra upplägg och använd igen.</p>
-      <div className="mt-5 space-y-3">
-        {templates.length ? templates.map((template) => (
-          <article key={template._id} className="rounded-[1.4rem] bg-[#181818] p-4 ring-1 ring-white/5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-black uppercase tracking-wider text-amber-300">{lengthLabel[template.length]}</p>
-                <h4 className="mt-1 font-black">{template.title}</h4>
-                <p className="mt-1 text-sm text-white/35">{template.meals.reduce((sum, meal) => sum + meal.items.length, 0)} matpunkter</p>
-              </div>
-              <button onClick={() => onDelete(template._id)} className="rounded-xl bg-white/5 px-3 py-2 text-xs font-black text-white/40 hover:text-rose-200">×</button>
-            </div>
-            <button onClick={() => onUse(template)} className="mt-3 w-full rounded-2xl bg-white/10 px-4 py-3 font-black text-white hover:bg-amber-300 hover:text-zinc-950">Använd igen</button>
-          </article>
-        )) : <p className="rounded-2xl bg-[#181818] px-4 py-4 font-bold text-white/35">Inga sparade matplaner än.</p>}
+    <section className="rounded-[2rem] border border-white/10 bg-white/[0.07] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.18)] backdrop-blur-2xl md:p-5">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow">Meal builder</p>
+          <h3 className="mt-2 text-3xl font-black tracking-[-0.07em] text-white">Skapa ny måltid</h3>
+          <p className="mt-1 text-sm font-semibold text-white/40">Sätt eget namn: förmiddagsmellis, kvällsmål, post-workout eller vad du vill.</p>
+        </div>
+        <button disabled={!canEdit} onClick={onCreate} className={greenButton}>+ Lägg till måltid</button>
       </div>
+      <div className="mt-5 grid gap-3 lg:grid-cols-[1.1fr_150px_1.2fr]">
+        <input disabled={!canEdit} className={darkInput} value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="Namn, t.ex. Förmiddags mellanmål" />
+        <input disabled={!canEdit} className={darkInput} value={draft.time} onChange={(event) => setDraft({ ...draft, time: event.target.value })} placeholder="Tid 10:30" />
+        <input disabled={!canEdit} className={darkInput} value={draft.item} onChange={(event) => setDraft({ ...draft, item: event.target.value })} onKeyDown={(event) => { if (event.key === 'Enter') onCreate(); }} placeholder="Första innehåll: ägg, potatis, biff" />
+      </div>
+      <textarea disabled={!canEdit} className="mt-3 min-h-20 w-full resize-y rounded-[1.4rem] border border-white/10 bg-black/20 px-4 py-3 text-sm font-semibold leading-6 text-white/70 outline-none placeholder:text-white/25" value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} placeholder="Valfria anteckningar, mängder, macros eller instruktioner..." />
     </section>
   );
 }
 
-function BothPlansPanel({ plans }: { plans: Map<PlanOwner, MealPlan> }) {
+function MealCard({ meal, canEdit, currentUser, onUpdate, onRemove, onToggle, onSaveMeal }: { meal: Meal; canEdit: boolean; currentUser: UserKey; onUpdate: (patch: Partial<Meal>) => void; onRemove: () => void; onToggle: () => void; onSaveMeal: () => void }) {
+  const [newItem, setNewItem] = useState('');
+  const done = Boolean(meal.completedBy[currentUser]);
+  const hasItems = meal.items.length > 0;
+
+  function addItem() {
+    const items = parseItems(newItem);
+    if (!items.length) return;
+    onUpdate({ items: [...meal.items, ...items] });
+    setNewItem('');
+  }
+
+  function updateItem(index: number, value: string) {
+    const nextItems = [...meal.items];
+    nextItems[index] = value;
+    onUpdate({ items: nextItems.map((item) => item.trim()).filter(Boolean) });
+  }
+
+  function removeItem(index: number) {
+    onUpdate({ items: meal.items.filter((_, itemIndex) => itemIndex !== index) });
+  }
+
   return (
-    <section className="rounded-[2rem] bg-[#242424] p-5 ring-1 ring-white/5">
-      <h3 className="text-2xl font-black">Egna planer</h3>
-      <div className="mt-4 space-y-3">
-        {(['robert', 'erika'] as PlanOwner[]).map((key) => {
-          const plan = plans.get(key);
+    <article className={`group relative overflow-hidden rounded-[2rem] border p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] backdrop-blur-2xl transition hover:-translate-y-1 ${done ? 'border-emerald-300/35 bg-emerald-300/15' : 'border-white/10 bg-white/[0.08]'}`}>
+      <div className="absolute right-0 top-0 h-32 w-32 translate-x-10 -translate-y-10 rounded-full bg-emerald-300/15 blur-2xl" />
+      <div className="relative flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <label className="text-[10px] font-black uppercase tracking-[0.24em] text-white/35">Namn på måltid</label>
+          <input disabled={!canEdit} className="mt-1 w-full border-0 bg-transparent text-3xl font-black tracking-[-0.07em] text-white outline-none placeholder:text-white/20" value={meal.title} onChange={(event) => onUpdate({ title: event.target.value })} placeholder="Förmiddags mellanmål" />
+          <input disabled={!canEdit} className="mt-3 w-36 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-xs font-black text-white/60 outline-none [color-scheme:dark]" value={meal.time || ''} onChange={(event) => onUpdate({ time: event.target.value })} placeholder="Tid, t.ex. 10:30" />
+        </div>
+        <button onClick={onToggle} className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-xl font-black transition ${done ? 'bg-emerald-300 text-slate-950' : 'bg-white/10 text-white/50 hover:bg-white/15 hover:text-white'}`}>{done ? '✓' : ''}</button>
+      </div>
+
+      <div className="relative mt-5 rounded-[1.5rem] border border-white/10 bg-black/20 p-3">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input disabled={!canEdit} className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-white/25 focus:border-emerald-300/40" value={newItem} onChange={(event) => setNewItem(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') addItem(); }} placeholder="Lägg till mat: ägg, potatis, biff" />
+          <button disabled={!canEdit} onClick={addItem} className={greenButton}>+ Mat</button>
+        </div>
+        <p className="mt-2 text-xs font-semibold text-white/35">Du kan lägga en och en med Enter, eller skriva flera med kommatecken.</p>
+      </div>
+
+      {hasItems ? (
+        <ul className="mt-4 space-y-2">
+          {meal.items.map((item, index) => (
+            <li key={`${item}-${index}`} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.07] p-2">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-300/15 text-xs font-black text-emerald-100">{index + 1}</span>
+              <input disabled={!canEdit} className="min-w-0 flex-1 border-0 bg-transparent px-2 py-2 text-sm font-bold text-white/80 outline-none" value={item} onChange={(event) => updateItem(index, event.target.value)} placeholder="Mat" />
+              <button disabled={!canEdit} onClick={() => removeItem(index)} className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white/10 text-sm font-black text-white/40 hover:bg-rose-400/15 hover:text-rose-200">×</button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.04] px-4 py-5 text-sm font-bold text-white/35">Ingen mat inlagd ännu. Lägg till ägg, kaffe, biff, potatis osv ovan.</div>
+      )}
+
+      <textarea disabled={!canEdit} className="mt-4 min-h-20 w-full resize-y rounded-[1.4rem] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-semibold leading-6 text-white/70 outline-none placeholder:text-white/25" value={meal.notes || ''} onChange={(event) => onUpdate({ notes: event.target.value })} placeholder="Anteckningar, mängder, macros, känsla..." />
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <button onClick={onToggle} className={done ? greenButton : softDarkButton}>{done ? 'Ätit' : 'Bocka av'}</button>
+        <button disabled={!canEdit || !hasItems} onClick={onSaveMeal} className={softDarkButton}>Spara måltid</button>
+        <button disabled={!canEdit} onClick={onRemove} className={dangerButton}>Radera</button>
+      </div>
+    </article>
+  );
+}
+
+function TrainingPanel({ activities, canEdit, currentUser, draft, setDraft, addActivity, updateActivity, deleteActivity, saveActivity, saveTrainingDay, large }: { activities: Activity[]; canEdit: boolean; currentUser: UserKey; draft: { title: string; time: string; comment: string }; setDraft: (draft: { title: string; time: string; comment: string }) => void; addActivity: () => void; updateActivity: (activity: Activity, patch: Partial<Activity>) => void; deleteActivity: (id?: string) => void; saveActivity: (activity: Activity) => void; saveTrainingDay: () => void; large?: boolean }) {
+  return (
+    <section className={`${card} p-5 md:p-6 ${large ? 'max-w-5xl' : ''}`}>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="eyebrow">Training</p>
+          <h3 className="mt-2 text-4xl font-black tracking-[-0.08em] text-white">Aktiviteter</h3>
+          <p className="mt-2 text-sm font-semibold text-white/40">Lägg in träning, spara pass som mall och bocka av när det är klart.</p>
+        </div>
+        <button disabled={!canEdit} onClick={saveTrainingDay} className={softDarkButton}>Spara träningsdag</button>
+      </div>
+      <div className="mt-5 grid gap-3 rounded-[1.7rem] border border-white/10 bg-black/20 p-4">
+        <input disabled={!canEdit} className={darkInput} value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="Aktivitet, tex Gym / Dans / Promenad" />
+        <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)]">
+          <input disabled={!canEdit} className={darkInput} value={draft.time} onChange={(event) => setDraft({ ...draft, time: event.target.value })} placeholder="Tid" />
+          <input disabled={!canEdit} className={darkInput} value={draft.comment} onChange={(event) => setDraft({ ...draft, comment: event.target.value })} placeholder="Kommentar" />
+        </div>
+        <button disabled={!canEdit || !draft.title.trim()} onClick={addActivity} className={greenButton}>Lägg till aktivitet</button>
+      </div>
+      <div className="mt-5 space-y-3">
+        <Empty show={activities.length === 0} text="Ingen träning inlagd för denna dag än." />
+        {activities.map((activity) => {
+          const done = Boolean(activity.completedBy[currentUser]);
           return (
-            <div key={key} className="rounded-[1.4rem] bg-[#181818] p-4 ring-1 ring-white/5">
-              <p className="font-black">{ownerLabel[key]}</p>
-              <p className="mt-1 text-sm text-white/40">{plan?.title}</p>
-            </div>
+            <article key={activity._id || activity.title} className={`rounded-[1.6rem] border p-4 transition ${done ? 'border-sky-300/35 bg-sky-300/12' : 'border-white/10 bg-white/[0.06]'}`}>
+              <div className="flex items-start gap-3">
+                <button onClick={() => updateActivity(activity, { completedBy: { ...activity.completedBy, [currentUser]: !done } })} className={`mt-1 grid h-10 w-10 shrink-0 place-items-center rounded-2xl font-black ${done ? 'bg-sky-300 text-slate-950' : 'bg-white/10 text-white/35'}`}>{done ? '✓' : ''}</button>
+                <div className="min-w-0 flex-1">
+                  <input disabled={!canEdit} className="w-full border-0 bg-transparent text-2xl font-black tracking-[-0.06em] text-white outline-none" value={activity.title} onChange={(event) => updateActivity(activity, { title: event.target.value })} />
+                  <div className="mt-2 grid gap-2 md:grid-cols-[120px_minmax(0,1fr)]">
+                    <input disabled={!canEdit} className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm font-bold text-white/60 outline-none" value={activity.time || ''} onChange={(event) => updateActivity(activity, { time: event.target.value })} placeholder="Tid" />
+                    <input disabled={!canEdit} className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm font-bold text-white/60 outline-none" value={activity.comment || ''} onChange={(event) => updateActivity(activity, { comment: event.target.value })} placeholder="Kommentar" />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                <button onClick={() => updateActivity(activity, { completedBy: { ...activity.completedBy, [currentUser]: !done } })} className={done ? greenButton : softDarkButton}>{done ? 'Klar' : 'Bocka av'}</button>
+                <button disabled={!canEdit} onClick={() => saveActivity(activity)} className={softDarkButton}>Spara pass</button>
+                <button disabled={!canEdit} onClick={() => deleteActivity(activity._id)} className={dangerButton}>Radera</button>
+              </div>
+            </article>
           );
         })}
       </div>
     </section>
   );
+}
+
+function CalendarPanel({ calendarMonth, setCalendarMonth, days, selectedDate, selectDate, weekPlans, applyWeekPlan, deleteWeekPlan }: { calendarMonth: string; setCalendarMonth: (date: string) => void; days: CalendarDay[]; selectedDate: string; selectDate: (date: string) => void; weekPlans: SavedWeekPlan[]; applyWeekPlan: (plan: SavedWeekPlan) => void; deleteWeekPlan: (id?: string) => void }) {
+  const activeDay = days.find((day) => day.date === selectedDate);
+  return (
+    <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_430px]">
+      <section className={`${card} p-5 md:p-6`}>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="eyebrow">Calendar</p>
+            <h2 className="mt-2 text-5xl font-black capitalize tracking-[-0.08em] text-white">{monthLabel(calendarMonth)}</h2>
+            <p className="mt-2 text-sm font-semibold text-white/40">Klicka på datum för att öppna dagens plan.</p>
+          </div>
+          <div className="flex gap-2">
+            <button className={softDarkButton} onClick={() => setCalendarMonth(prevMonth(calendarMonth))}>←</button>
+            <button className={softDarkButton} onClick={() => setCalendarMonth(monthStart(today()))}>Idag</button>
+            <button className={softDarkButton} onClick={() => setCalendarMonth(nextMonth(calendarMonth))}>→</button>
+          </div>
+        </div>
+        <div className="mt-7 grid grid-cols-7 gap-2">
+          {weekdays.map((day) => <p key={day} className="px-2 text-center text-xs font-black uppercase tracking-[0.2em] text-white/35">{day}</p>)}
+          {days.map((day) => {
+            const active = day.date === selectedDate;
+            return (
+              <button key={day.date} onClick={() => selectDate(day.date)} className={`group min-h-28 rounded-[1.35rem] border p-3 text-left transition hover:-translate-y-0.5 ${active ? 'border-emerald-300 bg-emerald-300 text-slate-950 shadow-xl shadow-emerald-950/20' : day.inMonth ? 'border-white/10 bg-white/[0.07] text-white hover:bg-white/[0.11]' : 'border-white/5 bg-white/[0.025] text-white/25'}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-2xl font-black tracking-[-0.07em]">{day.day}</p>
+                  {(day.hasMeals || day.hasActivities) && <span className={`h-2.5 w-2.5 rounded-full ${active ? 'bg-slate-950' : 'bg-emerald-300'}`} />}
+                </div>
+                <div className="mt-5 space-y-1.5">
+                  {day.hasMeals && <CalendarPill active={active} label={`Mat ${day.completedMeals}/${day.totalMeals}`} />}
+                  {day.hasActivities && <CalendarPill active={active} label={`Träning ${day.completedActivities}/${day.totalActivities}`} />}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+      <aside className={`${card} h-fit p-5 md:p-6 2xl:sticky 2xl:top-24`}>
+        <p className="eyebrow">Selected day</p>
+        <h3 className="mt-2 text-4xl font-black tracking-[-0.08em] text-white capitalize">{formatDate(selectedDate)}</h3>
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <DarkStat label="Måltider" value={activeDay ? `${activeDay.completedMeals}/${activeDay.totalMeals}` : '0/0'} />
+          <DarkStat label="Träning" value={activeDay ? `${activeDay.completedActivities}/${activeDay.totalActivities}` : '0/0'} />
+        </div>
+        <div className="mt-7 rounded-[1.7rem] border border-white/10 bg-black/20 p-4">
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-200/75">Veckoplaner</p>
+          <p className="mt-2 text-sm font-semibold leading-6 text-white/50">Applicera en sparad vecka på veckan där valt datum ligger.</p>
+          <div className="mt-4 space-y-3">
+            <Empty show={weekPlans.length === 0} text="Spara en vecka från Dagens plan så hamnar den här." />
+            {weekPlans.map((plan) => <MiniCard key={plan._id || plan.title} title={plan.title} meta={`${plan.days.length} dagar · mat + träning`} onUse={() => applyWeekPlan(plan)} onDelete={() => deleteWeekPlan(plan._id)} />)}
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function CalendarPill({ label, active }: { label: string; active: boolean }) {
+  return <span className={`block rounded-full px-2 py-1 text-[10px] font-black ${active ? 'bg-slate-950/10 text-slate-800' : 'bg-white/10 text-white/50'}`}>{label}</span>;
+}
+
+function BankPanel({ meals, activities, dayPlans, weekPlans, oldDayTemplates, addSavedMeal, updateSavedMeal, addSavedActivity, useDayPlan, applyWeekPlan, deleteMeal, deleteSavedActivity, deleteDayPlan, deleteWeekPlan }: { meals: SavedMeal[]; activities: SavedActivity[]; dayPlans: SavedDayPlan[]; weekPlans: SavedWeekPlan[]; oldDayTemplates: SavedMealPlan[]; addSavedMeal: (meal: SavedMeal) => void; updateSavedMeal: (meal: SavedMeal, patch: Partial<SavedMeal>) => void; addSavedActivity: (activity: SavedActivity) => void; useDayPlan: (plan: SavedDayPlan) => void; applyWeekPlan: (plan: SavedWeekPlan) => void; deleteMeal: (id?: string) => void; deleteSavedActivity: (id?: string) => void; deleteDayPlan: (id?: string) => void; deleteWeekPlan: (id?: string) => void }) {
+  return (
+    <section className={`${card} p-5 md:p-6`}>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow">Bank</p>
+          <h2 className="mt-2 text-5xl font-black tracking-[-0.08em] text-white">Sparat bibliotek</h2>
+          <p className="mt-2 text-sm font-semibold text-white/40">Återanvänd måltider, aktiviteter, dagar och hela veckor.</p>
+        </div>
+        <div className="rounded-full border border-white/10 bg-white/[0.07] px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-white/50">{meals.length + activities.length + dayPlans.length + weekPlans.length} mallar</div>
+      </div>
+      <div className="mt-7 grid gap-5 xl:grid-cols-2 2xl:grid-cols-4">
+        <BankColumn title="Måltider" icon="🍳"><Empty show={meals.length === 0} text="Spara en måltid från ett måltidskort." />{meals.map((meal) => <SavedMealCard key={meal._id || meal.title} meal={meal} onUse={() => addSavedMeal(meal)} onUpdate={(patch) => updateSavedMeal(meal, patch)} onDelete={() => deleteMeal(meal._id)} />)}</BankColumn>
+        <BankColumn title="Aktiviteter" icon="⚡"><Empty show={activities.length === 0} text="Spara en aktivitet från träningskortet." />{activities.map((activity) => <MiniCard key={activity._id || activity.title} title={activity.title} meta={activity.time || 'Ingen tid'} onUse={() => addSavedActivity(activity)} onDelete={() => deleteSavedActivity(activity._id)} />)}</BankColumn>
+        <BankColumn title="Dagsplaner" icon="☑"><Empty show={dayPlans.length === 0 && oldDayTemplates.length === 0} text="Spara matdag, träningsdag eller full dagsplan." />{dayPlans.map((plan) => <MiniCard key={plan._id || plan.title} title={plan.title} meta={`${kindLabel[plan.kind]} · ${plan.meals.length} måltider · ${plan.activities.length} aktiviteter`} onUse={() => useDayPlan(plan)} onDelete={() => deleteDayPlan(plan._id)} />)}{oldDayTemplates.map((template) => <MiniCard key={template._id || template.title} title={template.title} meta={`Gammal mall · ${template.meals.length} måltider`} onUse={() => useDayPlan({ owner: template.owner, title: template.title, kind: 'food', meals: template.meals, activities: [], createdBy: template.createdBy })} />)}</BankColumn>
+        <BankColumn title="Veckoplaner" icon="◷"><Empty show={weekPlans.length === 0} text="Spara hela veckan från Dagens plan." />{weekPlans.map((plan) => <MiniCard key={plan._id || plan.title} title={plan.title} meta={`${plan.days.length} dagar`} onUse={() => applyWeekPlan(plan)} onDelete={() => deleteWeekPlan(plan._id)} />)}</BankColumn>
+      </div>
+    </section>
+  );
+}
+
+function BankColumn({ title, icon, children }: { title: string; icon: string; children: ReactNode }) {
+  return (
+    <div className="rounded-[1.8rem] border border-white/10 bg-black/20 p-4">
+      <div className="flex items-center gap-3">
+        <span className="grid h-10 w-10 place-items-center rounded-2xl bg-white/10 text-lg">{icon}</span>
+        <h3 className="text-sm font-black uppercase tracking-[0.2em] text-white/50">{title}</h3>
+      </div>
+      <div className="mt-4 space-y-3">{children}</div>
+    </div>
+  );
+}
+
+function SavedMealCard({ meal, onUse, onUpdate, onDelete }: { meal: SavedMeal; onUse: () => void; onUpdate: (patch: Partial<SavedMeal>) => void; onDelete: () => void }) {
+  const [newItem, setNewItem] = useState('');
+
+  function addItem() {
+    const items = parseItems(newItem);
+    if (!items.length) return;
+    onUpdate({ items: [...meal.items, ...items] });
+    setNewItem('');
+  }
+
+  function updateItem(index: number, value: string) {
+    const nextItems = [...meal.items];
+    nextItems[index] = value;
+    onUpdate({ items: nextItems.map((item) => item.trim()).filter(Boolean) });
+  }
+
+  function removeItem(index: number) {
+    onUpdate({ items: meal.items.filter((_, itemIndex) => itemIndex !== index) });
+  }
+
+  return (
+    <article className="rounded-[1.4rem] border border-white/10 bg-white/[0.07] p-4 shadow-xl">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 space-y-2">
+          <input className="w-full border-0 bg-transparent text-base font-black tracking-[-0.04em] text-white outline-none placeholder:text-white/25" value={meal.title} onChange={(event) => onUpdate({ title: event.target.value })} placeholder="Namn på måltid" />
+          <input className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-bold text-white/60 outline-none" value={meal.time || ''} onChange={(event) => onUpdate({ time: event.target.value })} placeholder="Tid" />
+        </div>
+        <button onClick={onDelete} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/10 text-sm font-black text-white/40 hover:bg-rose-400/15 hover:text-rose-200">×</button>
+      </div>
+
+      <div className="mt-3 space-y-2">
+        {meal.items.map((item, index) => (
+          <div key={`${item}-${index}`} className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 p-2">
+            <input className="min-w-0 flex-1 border-0 bg-transparent text-xs font-bold text-white/70 outline-none" value={item} onChange={(event) => updateItem(index, event.target.value)} />
+            <button onClick={() => removeItem(index)} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white/10 text-xs font-black text-white/40 hover:text-rose-200">×</button>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3 flex gap-2">
+        <input className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-bold text-white outline-none placeholder:text-white/25" value={newItem} onChange={(event) => setNewItem(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') addItem(); }} placeholder="Lägg till mat" />
+        <button onClick={addItem} className={`${miniButton} border-white/10 bg-emerald-300 text-slate-950`}>+</button>
+      </div>
+
+      <textarea className="mt-3 min-h-16 w-full resize-y rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-white/60 outline-none placeholder:text-white/25" value={meal.notes || ''} onChange={(event) => onUpdate({ notes: event.target.value })} placeholder="Anteckningar" />
+      <button onClick={onUse} className={`${miniButton} mt-3 w-full border-white/10 bg-white/10 text-white/70 hover:bg-white/15 hover:text-white`}>Använd / lägg in</button>
+    </article>
+  );
+}
+
+function MiniCard({ title, meta, onUse, onDelete }: { title: string; meta: string; onUse: () => void; onDelete?: () => void }) {
+  return (
+    <article className="rounded-[1.4rem] border border-white/10 bg-white/[0.07] p-4 shadow-xl">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h4 className="truncate text-base font-black tracking-[-0.04em] text-white">{title}</h4>
+          <p className="mt-1 text-xs font-bold text-white/40">{meta}</p>
+        </div>
+        {onDelete && <button onClick={onDelete} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/10 text-sm font-black text-white/40 hover:bg-rose-400/15 hover:text-rose-200">×</button>}
+      </div>
+      <button onClick={onUse} className={`${miniButton} mt-3 w-full border-white/10 bg-white/10 text-white/70 hover:bg-white/15 hover:text-white`}>Använd / lägg in</button>
+    </article>
+  );
+}
+
+function ProgressPanel({ plan, activities, currentUser }: { plan: MealPlan; activities: Activity[]; currentUser: UserKey }) {
+  const foodProgress = progress(completedMeals(plan, currentUser), mealTotal(plan));
+  const trainingProgress = progress(completedActivities(activities, currentUser), activityTotal(activities));
+  return (
+    <section className="overflow-hidden rounded-[2rem] border border-emerald-300/20 bg-gradient-to-br from-emerald-300/20 via-white/[0.08] to-sky-300/10 p-5 text-white shadow-[0_24px_90px_rgba(0,0,0,0.30)] backdrop-blur-2xl">
+      <p className="eyebrow">Status</p>
+      <h3 className="mt-3 text-4xl font-black tracking-[-0.08em]">Dagens check</h3>
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <DarkStat label="Mat" value={`${foodProgress}%`} />
+        <DarkStat label="Måltider" value={`${completedMeals(plan, currentUser)}/${mealTotal(plan)}`} />
+        <DarkStat label="Träning" value={`${trainingProgress}%`} />
+        <DarkStat label="Plan" value={lengthLabel[plan.length]} />
+      </div>
+    </section>
+  );
+}
+
+function DarkStat({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-2xl border border-white/10 bg-black/20 p-4"><p className="text-xs font-black uppercase tracking-[0.18em] text-white/40">{label}</p><p className="mt-2 text-3xl font-black tracking-[-0.08em] text-white">{value}</p></div>;
+}
+
+function ToastCard({ toast }: { toast: Exclude<Toast, null> }) {
+  return <div className={`rounded-3xl px-5 py-4 text-sm font-black shadow-2xl ${toast.type === 'bad' ? 'bg-rose-500 text-white' : 'bg-emerald-400 text-slate-950'}`}>{toast.text}</div>;
+}
+
+function Empty({ show, text }: { show: boolean; text: string }) {
+  return show ? <p className="rounded-2xl border border-dashed border-white/10 bg-white/[0.04] p-4 text-sm font-bold leading-6 text-white/35">{text}</p> : null;
+}
+
+function PreviewRow({ time, title, meta, done }: { time: string; title: string; meta: string; done?: boolean }) {
+  return <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.07] p-3"><span className="w-12 text-xs font-black text-white/40">{time}</span><div className="min-w-0 flex-1"><p className="font-black text-white">{title}</p><p className="truncate text-xs font-semibold text-white/40">{meta}</p></div><span className={`grid h-8 w-8 place-items-center rounded-xl text-xs font-black ${done ? 'bg-emerald-300 text-slate-950' : 'bg-white/10 text-white/30'}`}>{done ? '✓' : ''}</span></div>;
 }

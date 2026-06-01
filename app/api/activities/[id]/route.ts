@@ -6,9 +6,10 @@ function getId(id: string) {
   return ObjectId.isValid(id) ? new ObjectId(id) : null;
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const _id = getId(params.id);
+    const { id } = await params;
+    const _id = getId(id);
     if (!_id) return NextResponse.json({ message: 'Invalid id' }, { status: 400 });
 
     const body = await request.json();
@@ -29,9 +30,10 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const _id = getId(params.id);
+    const { id } = await params;
+    const _id = getId(id);
     if (!_id) return NextResponse.json({ message: 'Invalid id' }, { status: 400 });
 
     const db = await getDb();

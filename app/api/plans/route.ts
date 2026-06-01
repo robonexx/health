@@ -13,14 +13,17 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date');
+    const start = searchParams.get('start');
+    const end = searchParams.get('end');
     const owner = searchParams.get('owner');
 
     const query: Record<string, unknown> = {};
     if (date) query.date = date;
+    if (!date && (start || end)) query.date = { ...(start ? { $gte: start } : {}), ...(end ? { $lte: end } : {}) };
     if (owner && isOwner(owner)) query.owner = owner;
 
     const db = await getDb();
-    const plans = await db.collection('mealPlans').find(query).sort({ date: -1, owner: 1 }).toArray();
+    const plans = await db.collection('mealPlans').find(query).sort({ date: 1, owner: 1 }).toArray();
 
     return NextResponse.json({ plans });
   } catch (error) {
