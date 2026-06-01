@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     }
 
     const now = new Date().toISOString();
-    const tip: HealthTip = {
+    const tip: Omit<HealthTip, '_id'> = {
       title: body.title,
       body: body.body,
       category: body.category || 'other',

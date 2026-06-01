@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Owner, title and createdBy are required' }, { status: 400 });
     }
     const now = new Date().toISOString();
-    const weekPlan: SavedWeekPlan = {
+    const weekPlan: Omit<SavedWeekPlan, '_id'> = {
       owner: body.owner,
       title: body.title.trim(),
       description: body.description?.trim() || '',

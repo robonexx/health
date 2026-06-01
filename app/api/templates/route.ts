@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     }
 
     const now = new Date().toISOString();
-    const template: SavedMealPlan = {
+    const template: Omit<SavedMealPlan, '_id'> = {
       owner: body.owner,
       title: body.title.trim(),
       length: lengths.includes(body.length) ? body.length : 'day',

@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     }
 
     const now = new Date().toISOString();
-    const meal: SavedMeal = {
+    const meal: Omit<SavedMeal, '_id'> = {
       owner: body.owner,
       title: body.title.trim(),
       time: body.time?.trim() || '',

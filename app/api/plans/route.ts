@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     }
 
     const now = new Date().toISOString();
-    const plan: MealPlan = {
+    const plan: Omit<MealPlan, '_id'> = {
       owner: body.owner,
       title: body.title?.trim() || 'Ny matplan',
       date: body.date,

@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Owner, title and createdBy are required' }, { status: 400 });
     }
     const now = new Date().toISOString();
-    const dayPlan: SavedDayPlan = {
+    const dayPlan: Omit<SavedDayPlan, '_id'> = {
       owner: body.owner,
       title: body.title.trim(),
       kind: isKind(body.kind) ? body.kind : 'full',

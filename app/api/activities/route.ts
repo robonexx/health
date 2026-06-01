@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     }
 
     const now = new Date().toISOString();
-    const activity: Activity = {
+    const activity: Omit<Activity, '_id'> = {
       owner: body.owner,
       date: body.date,
       title: body.title.trim(),
