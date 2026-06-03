@@ -59,14 +59,17 @@ const miniButton = 'rounded-xl border px-3 py-2 text-xs font-black transition di
 const card = 'rounded-[2rem] border border-white/10 bg-white/[0.08] shadow-[0_28px_100px_rgba(0,0,0,0.28)] backdrop-blur-2xl';
 
 const languageNames: Record<LanguageCode, string> = { sv: 'Svenska', en: 'English', fi: 'Suomi', es: 'Español', pt: 'Português', ja: '日本語', zh: '中文' };
-const uiText: Record<LanguageCode, { shared: string; today: string; calendar: string; bank: string; training: string; publish: string; copy: string; sharedSubtitle: string }> = {
-  sv: { shared: 'Delade planer', today: 'Dagens plan', calendar: 'Kalender', bank: 'Bank', training: 'Träning', publish: 'Publicera', copy: 'Kopiera', sharedSubtitle: 'Hitta inspiration från andra och kopiera en måltid, dagsplan eller veckoplan till din egen kalender.' },
-  en: { shared: 'Shared plans', today: 'Today', calendar: 'Calendar', bank: 'Bank', training: 'Training', publish: 'Publish', copy: 'Copy', sharedSubtitle: 'Find inspiration from others and copy a meal, day plan or week plan to your own calendar.' },
-  fi: { shared: 'Jaetut suunnitelmat', today: 'Tänään', calendar: 'Kalenteri', bank: 'Pankki', training: 'Treeni', publish: 'Julkaise', copy: 'Kopioi', sharedSubtitle: 'Löydä inspiraatiota muilta ja kopioi ateria, päivä- tai viikkosuunnitelma omaan kalenteriin.' },
-  es: { shared: 'Planes compartidos', today: 'Hoy', calendar: 'Calendario', bank: 'Banco', training: 'Entreno', publish: 'Publicar', copy: 'Copiar', sharedSubtitle: 'Encuentra inspiración de otros y copia una comida, día o semana a tu calendario.' },
-  pt: { shared: 'Planos partilhados', today: 'Hoje', calendar: 'Calendário', bank: 'Banco', training: 'Treino', publish: 'Publicar', copy: 'Copiar', sharedSubtitle: 'Encontra inspiração e copia uma refeição, dia ou semana para o teu calendário.' },
-  ja: { shared: '共有プラン', today: '今日', calendar: 'カレンダー', bank: 'バンク', training: 'トレーニング', publish: '公開', copy: 'コピー', sharedSubtitle: '他の人のプランを見て、食事・1日・1週間プランを自分のカレンダーにコピーできます。' },
-  zh: { shared: '共享计划', today: '今天', calendar: '日历', bank: '资料库', training: '训练', publish: '发布', copy: '复制', sharedSubtitle: '从他人的计划获得灵感，并复制餐食、日计划或周计划到自己的日历。' },
+const languageShortNames: Record<LanguageCode, string> = { sv: 'SV', en: 'EN', fi: 'FI', es: 'ES', pt: 'PT', ja: 'JP', zh: 'CN' };
+const languageFlags: Record<LanguageCode, string> = { sv: '🇸🇪', en: '🇬🇧', fi: '🇫🇮', es: '🇪🇸', pt: '🇵🇹', ja: '🇯🇵', zh: '🇨🇳' };
+const allLanguages = Object.keys(languageNames) as LanguageCode[];
+const uiText: Record<LanguageCode, { shared: string; today: string; calendar: string; bank: string; training: string; publish: string; copy: string; sharedSubtitle: string; language: string; personalPlan: string; healthTips: string; shareWithFriends: string; createGroup: string; invite: string; logout: string; welcomeKicker: string; login: string; signup: string; welcomeBack: string; authTitle: string; authSubtitle: string; name: string; email: string; password: string; confirmationNote: string; loginCta: string; signupCta: string; switchToLogin: string; switchToSignup: string; heroMealTitle: string; heroMealMeta: string; heroTrainingTitle: string; heroTrainingMeta: string; heroShareTitle: string; heroShareMeta: string; }> = {
+  sv: { shared: 'Delade planer', today: 'Dagens plan', calendar: 'Kalender', bank: 'Bank', training: 'Träning', publish: 'Publicera', copy: 'Kopiera', sharedSubtitle: 'Hitta inspiration från andra och kopiera en måltid, dagsplan eller veckoplan till din egen kalender.', language: 'Språk', personalPlan: 'Min privata plan', healthTips: 'Hälsotips', shareWithFriends: 'Dela med vänner', createGroup: 'Skapa grupp', invite: 'Bjud in', logout: 'Logga ut', welcomeKicker: 'Welcome to Your Health', login: 'Logga in', signup: 'Skapa konto', welcomeBack: 'Välkommen tillbaka', authTitle: 'Build your health rhythm.', authSubtitle: 'Skapa måltidsplaner, spara dina bästa måltider, planera träning, bygg dag- och veckoplaner och dela inspiration med familj eller vänner.', name: 'Namn', email: 'Email', password: 'Lösenord minst 8 tecken', confirmationNote: 'Du får ett confirmation mail. Där står att du kan använda appen för måltidsplaner, sparade måltider, träning och hälso-tips till andra.', loginCta: 'Öppna dashboard', signupCta: 'Skapa konto', switchToLogin: 'Har du redan konto? Logga in', switchToSignup: 'Inget konto än? Skapa konto', heroMealTitle: 'Planera veckan', heroMealMeta: 'Frukost, lunch, mellis, middag', heroTrainingTitle: 'Spara aktiviteter', heroTrainingMeta: 'Dagsplaner och veckoplaner', heroShareTitle: 'Inspirera varandra', heroShareMeta: 'Privat eller grupp upp till 10 personer' },
+  en: { shared: 'Shared plans', today: 'Today', calendar: 'Calendar', bank: 'Bank', training: 'Training', publish: 'Publish', copy: 'Copy', sharedSubtitle: 'Find inspiration from others and copy a meal, day plan or week plan to your own calendar.', language: 'Language', personalPlan: 'My private plan', healthTips: 'Health tips', shareWithFriends: 'Share with friends', createGroup: 'Create group', invite: 'Invite', logout: 'Log out', welcomeKicker: 'Welcome to Your Health', login: 'Log in', signup: 'Sign up', welcomeBack: 'Welcome back', authTitle: 'Build your health rhythm.', authSubtitle: 'Create meal plans, save your best meals, plan training, build day and week plans and share inspiration with family or friends.', name: 'Name', email: 'Email', password: 'Password, at least 8 characters', confirmationNote: 'You will receive a confirmation email about using the app for meal plans, saved meals, training and sharing health tips with others.', loginCta: 'Open dashboard', signupCta: 'Create account', switchToLogin: 'Already have an account? Log in', switchToSignup: 'No account yet? Sign up', heroMealTitle: 'Plan your week', heroMealMeta: 'Breakfast, lunch, snacks, dinner', heroTrainingTitle: 'Save activities', heroTrainingMeta: 'Day plans and week plans', heroShareTitle: 'Inspire each other', heroShareMeta: 'Private or group up to 10 people' },
+  fi: { shared: 'Jaetut suunnitelmat', today: 'Tänään', calendar: 'Kalenteri', bank: 'Pankki', training: 'Treeni', publish: 'Julkaise', copy: 'Kopioi', sharedSubtitle: 'Löydä inspiraatiota muilta ja kopioi ateria, päivä- tai viikkosuunnitelma omaan kalenteriin.', language: 'Kieli', personalPlan: 'Oma suunnitelma', healthTips: 'Terveysvinkit', shareWithFriends: 'Jaa ystäville', createGroup: 'Luo ryhmä', invite: 'Kutsu', logout: 'Kirjaudu ulos', welcomeKicker: 'Welcome to Your Health', login: 'Kirjaudu', signup: 'Luo tili', welcomeBack: 'Tervetuloa takaisin', authTitle: 'Rakenna oma terveysrytmi.', authSubtitle: 'Luo ateriasuunnitelmia, tallenna suosikkiateriat, suunnittele treenit ja jaa inspiraatiota perheen tai ystävien kanssa.', name: 'Nimi', email: 'Email', password: 'Salasana, vähintään 8 merkkiä', confirmationNote: 'Saat vahvistussähköpostin, jossa kerrotaan ateriasuunnitelmista, tallennetuista aterioista, treenistä ja terveysvinkeistä.', loginCta: 'Avaa dashboard', signupCta: 'Luo tili', switchToLogin: 'Onko sinulla jo tili? Kirjaudu', switchToSignup: 'Ei tiliä? Luo tili', heroMealTitle: 'Suunnittele viikko', heroMealMeta: 'Aamiainen, lounas, välipala, illallinen', heroTrainingTitle: 'Tallenna aktiviteetit', heroTrainingMeta: 'Päivä- ja viikkosuunnitelmat', heroShareTitle: 'Inspiroikaa toisianne', heroShareMeta: 'Yksityinen tai ryhmä, max 10 henkilöä' },
+  es: { shared: 'Planes compartidos', today: 'Hoy', calendar: 'Calendario', bank: 'Banco', training: 'Entreno', publish: 'Publicar', copy: 'Copiar', sharedSubtitle: 'Encuentra inspiración de otros y copia una comida, día o semana a tu calendario.', language: 'Idioma', personalPlan: 'Mi plan privado', healthTips: 'Consejos de salud', shareWithFriends: 'Compartir con amigos', createGroup: 'Crear grupo', invite: 'Invitar', logout: 'Cerrar sesión', welcomeKicker: 'Welcome to Your Health', login: 'Entrar', signup: 'Crear cuenta', welcomeBack: 'Bienvenido de nuevo', authTitle: 'Construye tu ritmo saludable.', authSubtitle: 'Crea planes de comida, guarda tus mejores comidas, planifica entrenos y comparte inspiración con familia o amigos.', name: 'Nombre', email: 'Email', password: 'Contraseña, mínimo 8 caracteres', confirmationNote: 'Recibirás un email de confirmación sobre planes de comida, comidas guardadas, entrenamiento y consejos de salud.', loginCta: 'Abrir dashboard', signupCta: 'Crear cuenta', switchToLogin: '¿Ya tienes cuenta? Entrar', switchToSignup: '¿No tienes cuenta? Crear cuenta', heroMealTitle: 'Planifica la semana', heroMealMeta: 'Desayuno, comida, snack, cena', heroTrainingTitle: 'Guarda actividades', heroTrainingMeta: 'Planes diarios y semanales', heroShareTitle: 'Inspiraos juntos', heroShareMeta: 'Privado o grupo hasta 10 personas' },
+  pt: { shared: 'Planos partilhados', today: 'Hoje', calendar: 'Calendário', bank: 'Banco', training: 'Treino', publish: 'Publicar', copy: 'Copiar', sharedSubtitle: 'Encontra inspiração e copia uma refeição, dia ou semana para o teu calendário.', language: 'Idioma', personalPlan: 'O meu plano privado', healthTips: 'Dicas de saúde', shareWithFriends: 'Partilhar com amigos', createGroup: 'Criar grupo', invite: 'Convidar', logout: 'Sair', welcomeKicker: 'Welcome to Your Health', login: 'Entrar', signup: 'Criar conta', welcomeBack: 'Bem-vindo de volta', authTitle: 'Constrói o teu ritmo de saúde.', authSubtitle: 'Cria planos de refeições, guarda as melhores refeições, planeia treino e partilha inspiração com família ou amigos.', name: 'Nome', email: 'Email', password: 'Password, mínimo 8 caracteres', confirmationNote: 'Vais receber um email de confirmação sobre planos de refeições, refeições guardadas, treino e dicas de saúde.', loginCta: 'Abrir dashboard', signupCta: 'Criar conta', switchToLogin: 'Já tens conta? Entrar', switchToSignup: 'Ainda sem conta? Criar conta', heroMealTitle: 'Planeia a semana', heroMealMeta: 'Pequeno-almoço, almoço, snack, jantar', heroTrainingTitle: 'Guarda atividades', heroTrainingMeta: 'Planos diários e semanais', heroShareTitle: 'Inspirem-se juntos', heroShareMeta: 'Privado ou grupo até 10 pessoas' },
+  ja: { shared: '共有プラン', today: '今日', calendar: 'カレンダー', bank: 'バンク', training: 'トレーニング', publish: '公開', copy: 'コピー', sharedSubtitle: '他の人のプランを見て、食事・1日・1週間プランを自分のカレンダーにコピーできます。', language: '言語', personalPlan: '自分のプラン', healthTips: '健康ヒント', shareWithFriends: '友達と共有', createGroup: 'グループ作成', invite: '招待', logout: 'ログアウト', welcomeKicker: 'Welcome to Your Health', login: 'ログイン', signup: '登録', welcomeBack: 'おかえりなさい', authTitle: '健康リズムを作ろう。', authSubtitle: '食事プラン、保存した食事、トレーニング、1日・1週間プランを作り、家族や友達と共有できます。', name: '名前', email: 'Email', password: 'パスワード 8文字以上', confirmationNote: '確認メールが届きます。食事プラン、保存した食事、トレーニング、健康ヒントについて案内します。', loginCta: 'ダッシュボードへ', signupCta: 'アカウント作成', switchToLogin: 'すでにアカウントがありますか？ログイン', switchToSignup: 'アカウントがありませんか？登録', heroMealTitle: '週間を計画', heroMealMeta: '朝食、昼食、軽食、夕食', heroTrainingTitle: '活動を保存', heroTrainingMeta: '1日・1週間プラン', heroShareTitle: '互いに刺激を', heroShareMeta: '個人または最大10人のグループ' },
+  zh: { shared: '共享计划', today: '今天', calendar: '日历', bank: '资料库', training: '训练', publish: '发布', copy: '复制', sharedSubtitle: '从他人的计划获得灵感，并复制餐食、日计划或周计划到自己的日历。', language: '语言', personalPlan: '我的私人计划', healthTips: '健康提示', shareWithFriends: '与朋友分享', createGroup: '创建群组', invite: '邀请', logout: '退出登录', welcomeKicker: 'Welcome to Your Health', login: '登录', signup: '注册', welcomeBack: '欢迎回来', authTitle: '建立你的健康节奏。', authSubtitle: '创建餐食计划，保存喜欢的餐食，安排训练，建立日计划和周计划，并与家人朋友分享灵感。', name: '姓名', email: 'Email', password: '密码至少8个字符', confirmationNote: '你会收到确认邮件，介绍餐食计划、保存餐食、训练和健康提示功能。', loginCta: '打开仪表盘', signupCta: '创建账号', switchToLogin: '已有账号？登录', switchToSignup: '还没有账号？注册', heroMealTitle: '计划一周', heroMealMeta: '早餐、午餐、加餐、晚餐', heroTrainingTitle: '保存活动', heroTrainingMeta: '日计划和周计划', heroShareTitle: '互相启发', heroShareMeta: '私人或最多10人的群组' },
 };
 
 function today() { return new Date().toISOString().slice(0, 10); }
@@ -434,7 +437,7 @@ export default function HealthApp() {
   }
 
   if (!authChecked) return <main className="min-h-screen bg-[#07080c] text-white"><Background /><div className="relative z-10 grid min-h-screen place-items-center"><p className="rounded-3xl border border-white/10 bg-white/10 px-6 py-4 font-black">Laddar...</p></div></main>;
-  if (!currentUser) return <LoginScreen mode={authMode} setMode={setAuthMode} draft={authDraft} setDraft={setAuthDraft} submit={submitAuth} loginError={loginError} />;
+  if (!currentUser) return <LoginScreen mode={authMode} setMode={setAuthMode} draft={authDraft} setDraft={setAuthDraft} submit={submitAuth} loginError={loginError} language={language} setLanguage={setLanguage} />;
 
   return (
     <main className="min-h-screen overflow-hidden text-white">
@@ -535,40 +538,45 @@ function Background() {
   );
 }
 
-function LoginScreen({ mode, setMode, draft, setDraft, submit, loginError }: { mode: 'login' | 'signup'; setMode: (mode: 'login' | 'signup') => void; draft: { name: string; email: string; password: string }; setDraft: (draft: { name: string; email: string; password: string }) => void; submit: () => void; loginError: string }) {
+function LoginScreen({ mode, setMode, draft, setDraft, submit, loginError, language, setLanguage }: { mode: 'login' | 'signup'; setMode: (mode: 'login' | 'signup') => void; draft: { name: string; email: string; password: string }; setDraft: (draft: { name: string; email: string; password: string }) => void; submit: () => void; loginError: string; language: LanguageCode; setLanguage: (language: LanguageCode) => void }) {
   const isSignup = mode === 'signup';
+  const t = uiText[language];
   return (
     <main className="min-h-screen text-white">
       <Background />
-      <section className="relative z-10 mx-auto grid min-h-screen max-w-7xl place-items-center px-4 py-8">
-        <div className="grid w-full overflow-hidden rounded-[2.75rem] border border-white/10 bg-white/[0.06] shadow-[0_40px_140px_rgba(0,0,0,0.45)] backdrop-blur-2xl lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="relative min-h-[640px] overflow-hidden p-8 md:p-12">
-            <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-emerald-400/30 blur-3xl" />
-            <div className="absolute bottom-8 left-8 right-8 rounded-[2rem] border border-white/10 bg-black/25 p-5 backdrop-blur-xl md:left-auto md:w-[28rem]">
-              <p className="text-xs font-black uppercase tracking-[0.32em] text-white/40">Welcome to Your Health</p>
+      <section className="relative z-10 mx-auto grid min-h-screen max-w-7xl place-items-center px-3 py-5 sm:px-4 sm:py-8">
+        <div className="grid w-full overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.06] shadow-[0_40px_140px_rgba(0,0,0,0.45)] backdrop-blur-2xl sm:rounded-[2.2rem] lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="relative overflow-hidden p-5 sm:p-8 md:p-10 lg:min-h-[640px] lg:p-12">
+            <div className="absolute -right-32 -top-32 h-80 w-80 rounded-full bg-emerald-400/30 blur-3xl sm:h-96 sm:w-96" />
+            <div className="relative max-w-3xl">
+              <div className="inline-flex rounded-full border border-white/10 bg-white/10 px-3 py-2 text-[0.65rem] font-black uppercase tracking-[0.18em] text-emerald-200 backdrop-blur-xl sm:px-4 sm:text-xs sm:tracking-[0.28em]">DinHälsa · HealthApp 2026</div>
+              <h1 className="mt-6 text-[3.05rem] font-black leading-[0.88] tracking-[-0.08em] text-white sm:text-6xl md:text-7xl lg:mt-8 lg:text-8xl">{t.authTitle}</h1>
+              <p className="mt-5 max-w-xl text-sm font-semibold leading-7 text-white/60 sm:text-base md:mt-7 md:text-lg md:leading-8">{t.authSubtitle}</p>
+            </div>
+
+            <div className="relative mt-7 rounded-[1.55rem] border border-white/10 bg-black/30 p-4 backdrop-blur-xl sm:rounded-[2rem] sm:p-5 lg:absolute lg:bottom-8 lg:left-auto lg:right-8 lg:mt-0 lg:w-[28rem]">
+              <p className="text-[0.65rem] font-black uppercase tracking-[0.24em] text-white/40 sm:text-xs sm:tracking-[0.32em]">{t.welcomeKicker}</p>
               <div className="mt-4 space-y-3">
-                <PreviewRow time="Meals" title="Planera veckan" meta="Frukost, lunch, mellis, middag" done />
-                <PreviewRow time="Training" title="Spara aktiviteter" meta="Dagsplaner och veckoplaner" />
-                <PreviewRow time="Share" title="Inspirera varandra" meta="Privat eller grupp upp till 10 personer" />
+                <PreviewRow time="Meals" title={t.heroMealTitle} meta={t.heroMealMeta} done />
+                <PreviewRow time="Training" title={t.heroTrainingTitle} meta={t.heroTrainingMeta} />
+                <PreviewRow time="Share" title={t.heroShareTitle} meta={t.heroShareMeta} />
               </div>
             </div>
-            <div className="relative max-w-3xl">
-              <div className="inline-flex rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-[0.28em] text-emerald-200 backdrop-blur-xl">DinHälsa · HealthApp 2026</div>
-              <h1 className="mt-8 text-6xl font-black leading-[0.88] tracking-[-0.08em] text-white md:text-8xl">Build your health rhythm.</h1>
-              <p className="mt-8 max-w-xl text-lg font-semibold leading-8 text-white/60">Skapa måltidsplaner, spara dina bästa måltider, planera träning, bygg dag- och veckoplaner och dela inspiration med familj eller vänner.</p>
-            </div>
           </div>
-          <div className="flex items-center border-t border-white/10 bg-white/[0.08] p-5 md:p-10 lg:border-l lg:border-t-0">
-            <div className="w-full rounded-[2rem] border border-white/10 bg-white/90 p-6 text-slate-950 shadow-2xl md:p-8">
-              <p className="text-xs font-black uppercase tracking-[0.32em] text-emerald-600">{isSignup ? 'Skapa konto' : 'Logga in'}</p>
-              <h2 className="mt-3 text-4xl font-black tracking-[-0.07em]">{isSignup ? 'Welcome to Your Health' : 'Välkommen tillbaka'}</h2>
-              {isSignup && <input className={`${input} mt-6`} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="Namn" />}
-              <input className={`${input} ${isSignup ? 'mt-3' : 'mt-6'}`} type="email" value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })} placeholder="Email" />
-              <input className={`${input} mt-3`} type="password" value={draft.password} onChange={(event) => setDraft({ ...draft, password: event.target.value })} onKeyDown={(event) => event.key === 'Enter' && submit()} placeholder="Lösenord minst 8 tecken" />
-              {isSignup && <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold leading-6 text-emerald-900">Du får ett confirmation mail. Där står att du kan använda appen för måltidsplaner, sparade måltider, träning och hälso-tips till andra.</p>}
+          <div className="flex items-center border-t border-white/10 bg-white/[0.08] p-4 sm:p-5 md:p-10 lg:border-l lg:border-t-0">
+            <div className="w-full rounded-[1.55rem] border border-white/10 bg-white/90 p-5 text-slate-950 shadow-2xl sm:rounded-[2rem] sm:p-6 md:p-8">
+              <div className="mb-5 rounded-[1.25rem] border border-slate-200 bg-slate-950 p-2 shadow-inner shadow-black/20">
+                <LanguagePicker language={language} setLanguage={setLanguage} compact />
+              </div>
+              <p className="text-xs font-black uppercase tracking-[0.26em] text-emerald-600 sm:tracking-[0.32em]">{isSignup ? t.signup : t.login}</p>
+              <h2 className="mt-3 text-3xl font-black tracking-[-0.07em] sm:text-4xl">{isSignup ? t.welcomeKicker : t.welcomeBack}</h2>
+              {isSignup && <input className={`${input} mt-6`} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder={t.name} />}
+              <input className={`${input} ${isSignup ? 'mt-3' : 'mt-6'}`} type="email" value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })} placeholder={t.email} />
+              <input className={`${input} mt-3`} type="password" value={draft.password} onChange={(event) => setDraft({ ...draft, password: event.target.value })} onKeyDown={(event) => event.key === 'Enter' && submit()} placeholder={t.password} />
+              {isSignup && <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold leading-6 text-emerald-900">{t.confirmationNote}</p>}
               {loginError && <p className="mt-3 text-sm font-black text-rose-600">{loginError}</p>}
-              <button onClick={submit} className={`${greenButton} mt-5 w-full`}>{isSignup ? 'Skapa konto' : 'Öppna dashboard'}</button>
-              <button onClick={() => { setMode(isSignup ? 'login' : 'signup'); }} className="mt-4 w-full text-sm font-black text-slate-500 hover:text-slate-950">{isSignup ? 'Har du redan konto? Logga in' : 'Inget konto än? Skapa konto'}</button>
+              <button onClick={submit} className={`${greenButton} mt-5 w-full`}>{isSignup ? t.signupCta : t.loginCta}</button>
+              <button onClick={() => { setMode(isSignup ? 'login' : 'signup'); }} className="mt-4 w-full text-sm font-black text-slate-500 hover:text-slate-950">{isSignup ? t.switchToLogin : t.switchToSignup}</button>
             </div>
           </div>
         </div>
@@ -577,8 +585,32 @@ function LoginScreen({ mode, setMode, draft, setDraft, submit, loginError }: { m
   );
 }
 
+function LanguagePicker({ language, setLanguage, compact = false }: { language: LanguageCode; setLanguage: (language: LanguageCode) => void; compact?: boolean }) {
+  return (
+    <div className={`grid ${compact ? 'grid-cols-7 gap-1.5' : 'grid-cols-2 gap-2 sm:grid-cols-3'}`}>
+      {allLanguages.map((code) => {
+        const active = code === language;
+        return (
+          <button
+            key={code}
+            type="button"
+            onClick={() => setLanguage(code)}
+            title={languageNames[code]}
+            className={`group flex items-center justify-center gap-2 rounded-2xl border px-2 py-2 text-xs font-black transition ${active ? 'border-emerald-300/50 bg-emerald-300 text-slate-950 shadow-lg shadow-emerald-950/20' : 'border-white/10 bg-black/45 text-slate-300 hover:border-white/20 hover:bg-white/10 hover:text-white'}`}
+          >
+            <span className="text-base leading-none">{languageFlags[code]}</span>
+            {!compact && <span>{languageShortNames[code]}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+
 function Sidebar({ owner, currentUser, groups, activeOwner, setActiveOwner, groupDraft, setGroupDraft, createGroup, inviteToActiveGroup, logout, language, setLanguage }: { owner: PlanOwner; currentUser: LoginUser; groups: HealthGroup[]; activeOwner: PlanOwner; setActiveOwner: (owner: PlanOwner) => void; groupDraft: { name: string; description: string; inviteEmail: string }; setGroupDraft: (draft: { name: string; description: string; inviteEmail: string }) => void; createGroup: () => void; inviteToActiveGroup: () => void; logout: () => void; language: LanguageCode; setLanguage: (language: LanguageCode) => void }) {
   const selectedGroup = groups.find((group) => `group:${group._id}` === activeOwner);
+  const t = uiText[language];
   return (
     <aside className="xl:sticky xl:top-5">
       <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.08] p-3 text-white shadow-[0_28px_100px_rgba(0,0,0,0.30)] backdrop-blur-2xl">
@@ -597,30 +629,30 @@ function Sidebar({ owner, currentUser, groups, activeOwner, setActiveOwner, grou
           </div>
         </div>
         <nav className="mt-3 space-y-2 rounded-[1.65rem] bg-black/20 p-3 ring-1 ring-white/10">
-          <button onClick={() => setActiveOwner(currentUser.key)} className={`w-full text-left ${activeOwner === currentUser.key ? 'rounded-2xl bg-white text-slate-950 shadow-xl' : 'rounded-2xl text-white/60 hover:bg-white/[0.08] hover:text-white'} px-3 py-3 text-sm font-black transition`}>● Min privata plan</button>
+          <button onClick={() => setActiveOwner(currentUser.key)} className={`w-full text-left ${activeOwner === currentUser.key ? 'rounded-2xl bg-white text-slate-950 shadow-xl' : 'rounded-2xl text-white/60 hover:bg-white/[0.08] hover:text-white'} px-3 py-3 text-sm font-black transition`}>● {t.personalPlan}</button>
           {groups.map((group) => (
             <button key={group._id} onClick={() => setActiveOwner(`group:${group._id}`)} className={`w-full text-left ${activeOwner === `group:${group._id}` ? 'rounded-2xl bg-white text-slate-950 shadow-xl' : 'rounded-2xl text-white/60 hover:bg-white/[0.08] hover:text-white'} px-3 py-3 text-sm font-black transition`}>◌ {group.name}</button>
           ))}
-          <NavLink href="/tips" icon="✦" label="Hälsotips" active={false} />
+          <NavLink href="/tips" icon="✦" label={t.healthTips} active={false} />
         </nav>
         <div className="mt-3 rounded-[1.65rem] border border-white/10 bg-white/[0.06] p-3">
-          <p className="px-2 text-xs font-black uppercase tracking-[0.22em] text-white/35">Dela med vänner</p>
+          <p className="px-2 text-xs font-black uppercase tracking-[0.22em] text-white/35">{t.shareWithFriends}</p>
           <input className={`${darkInput} mt-3 py-2`} value={groupDraft.name} onChange={(event) => setGroupDraft({ ...groupDraft, name: event.target.value })} placeholder="Ny grupp, t.ex. Familjen" />
-          <button onClick={createGroup} className={`${softDarkButton} mt-2 w-full py-2`}>Skapa grupp</button>
+          <button onClick={createGroup} className={`${softDarkButton} mt-2 w-full py-2`}>{t.createGroup}</button>
           {selectedGroup && <div className="mt-3 rounded-2xl bg-black/20 p-3">
             <p className="text-xs font-black text-white/45">{selectedGroup.members?.length || 0}/10 medlemmar</p>
             <input className={`${darkInput} mt-2 py-2`} value={groupDraft.inviteEmail} onChange={(event) => setGroupDraft({ ...groupDraft, inviteEmail: event.target.value })} placeholder="vän@email.se" />
-            <button onClick={inviteToActiveGroup} className={`${greenButton} mt-2 w-full py-2`}>Bjud in</button>
+            <button onClick={inviteToActiveGroup} className={`${greenButton} mt-2 w-full py-2`}>{t.invite}</button>
           </div>}
         </div>
 
         <div className="mt-3 rounded-[1.65rem] border border-white/10 bg-white/[0.06] p-3">
-          <p className="px-2 text-xs font-black uppercase tracking-[0.22em] text-white/35">Language</p>
-          <select className={`${darkInput} mt-3 py-2`} value={language} onChange={(event) => setLanguage(event.target.value as LanguageCode)}>
-            {(Object.keys(languageNames) as LanguageCode[]).map((code) => <option key={code} value={code}>{languageNames[code]}</option>)}
-          </select>
+          <p className="px-2 text-xs font-black uppercase tracking-[0.22em] text-white/35">{t.language}</p>
+          <div className="mt-3 rounded-[1.25rem] bg-black/45 p-2 ring-1 ring-white/10">
+            <LanguagePicker language={language} setLanguage={setLanguage} />
+          </div>
         </div>
-        <button onClick={logout} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 text-sm font-black text-white/70 transition hover:bg-white/[0.12] hover:text-white">Logga ut</button>
+        <button onClick={logout} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 text-sm font-black text-white/70 transition hover:bg-white/[0.12] hover:text-white">{t.logout}</button>
       </div>
     </aside>
   );
