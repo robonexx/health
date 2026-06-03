@@ -94,7 +94,7 @@ export default function TipsApp() {
     const response = await fetch('/api/tips', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, category, body, createdBy: currentUser.key }),
+      body: JSON.stringify({ title, category, body }),
     });
     if (!response.ok) {
       const data = await response.json().catch(() => null);
@@ -191,7 +191,7 @@ export default function TipsApp() {
                 </div>
               )}
               {tips.map((tip, index) => (
-                <HealthTipCard key={tip._id || `${tip.title}-${index}`} tip={tip} index={index} onUpdate={(patch) => updateTip(tip, patch)} onDelete={() => deleteTip(tip._id)} />
+                <HealthTipCard key={tip._id || `${tip.title}-${index}`} tip={tip} index={index} currentUser={currentUser} onUpdate={(patch) => updateTip(tip, patch)} onDelete={() => deleteTip(tip._id)} />
               ))}
             </div>
           </section>
@@ -222,8 +222,9 @@ function SideNav({ currentUser, active, logout }: { currentUser: LoginUser; acti
   );
 }
 
-function HealthTipCard({ tip, index, onUpdate, onDelete }: { tip: HealthTip; index: number; onUpdate: (patch: Partial<HealthTip>) => void; onDelete: () => void }) {
+function HealthTipCard({ tip, index, currentUser, onUpdate, onDelete }: { tip: HealthTip; index: number; currentUser: LoginUser; onUpdate: (patch: Partial<HealthTip>) => void; onDelete: () => void }) {
   const [editing, setEditing] = useState(false);
+  const canManage = currentUser.role === 'admin' || tip.createdBy === currentUser.key;
   const [draft, setDraft] = useState({ title: tip.title, category: tip.category, body: tip.body });
 
   useEffect(() => {
@@ -265,15 +266,15 @@ function HealthTipCard({ tip, index, onUpdate, onDelete }: { tip: HealthTip; ind
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-950/10 pt-4">
           <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-400">Av {tip.createdBy}</p>
           <div className="flex gap-2">
-            {editing ? (
+            {canManage && editing ? (
               <>
                 <button onClick={() => setEditing(false)} className="rounded-xl bg-zinc-100 px-3 py-2 text-xs font-black text-zinc-500 hover:bg-zinc-200">Avbryt</button>
                 <button onClick={save} className="rounded-xl bg-zinc-950 px-3 py-2 text-xs font-black text-white hover:bg-[#99c75b] hover:text-zinc-950">Spara</button>
               </>
-            ) : (
+            ) : canManage ? (
               <button onClick={() => setEditing(true)} className="rounded-xl bg-zinc-100 px-3 py-2 text-xs font-black text-zinc-500 hover:bg-zinc-200">Ändra</button>
-            )}
-            <button onClick={onDelete} className="rounded-xl bg-zinc-100 px-3 py-2 text-xs font-black text-zinc-400 hover:bg-red-50 hover:text-red-700">Ta bort</button>
+            ) : null}
+            {canManage && <button onClick={onDelete} className="rounded-xl bg-zinc-100 px-3 py-2 text-xs font-black text-zinc-400 hover:bg-red-50 hover:text-red-700">Ta bort</button>}
           </div>
         </div>
       </div>

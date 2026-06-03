@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
 import { getFreshSessionUser } from '@/lib/auth';
+import { requireOwnerAccess } from '@/lib/permissions';
 import type { LanguageCode, PublicSharedPlan, SharedPlanType } from '@/lib/types';
 
 const types: SharedPlanType[] = ['meal', 'day', 'week', 'month', 'training'];
-const languages: LanguageCode[] = ['sv', 'en', 'fi', 'es', 'pt', 'ja', 'zh'];
+const languages: LanguageCode[] = ['sv', 'en', 'fi', 'es', 'pt', 'fr', 'ja', 'zh'];
 
 function isType(value: unknown): value is SharedPlanType {
   return typeof value === 'string' && types.includes(value as SharedPlanType);
@@ -46,6 +47,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Type and title are required' }, { status: 400 });
     }
 
+    const db = await getDb();
+    const sourceOwner = typeof body.sourceOwner === 'string' && body.sourceOwner.trim() ? body.sourceOwner : user.key;
+    await requireOwnerAccess(db, sourceOwner, user);
+
     const now = new Date().toISOString();
     const plan: Omit<PublicSharedPlan, '_id'> = {
       type: body.type,
@@ -54,7 +59,7 @@ export async function POST(request: Request) {
       description: body.description?.trim() || '',
       tags: Array.isArray(body.tags) ? body.tags.map((tag) => String(tag).trim().toLowerCase()).filter(Boolean).slice(0, 8) : [],
       language: isLanguage(body.language) ? body.language : 'en',
-      sourceOwner: body.sourceOwner || user.key,
+      sourceOwner,
       publishedBy: user.key,
       publishedByName: user.name,
       meals: Array.isArray(body.meals) ? body.meals : undefined,
@@ -69,7 +74,6 @@ export async function POST(request: Request) {
       updatedAt: now,
     };
 
-    const db = await getDb();
     const result = await db.collection('publicSharedPlans').insertOne(plan);
     return NextResponse.json({ plan: { ...plan, _id: String(result.insertedId) } }, { status: 201 });
   } catch (error) {

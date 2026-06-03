@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
+import { getFreshSessionUser } from '@/lib/auth';
 import type { HealthTip } from '@/lib/types';
 
 function serializeTip(tip: any) {
@@ -19,12 +20,16 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const user = await getFreshSessionUser();
+    if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+
+    const db = await getDb();
     const body = (await request.json()) as Partial<HealthTip>;
     const title = body.title?.trim();
     const tipBody = body.body?.trim();
 
-    if (!title || !tipBody || !body.createdBy) {
-      return NextResponse.json({ message: 'Title, body and createdBy are required' }, { status: 400 });
+    if (!title || !tipBody) {
+      return NextResponse.json({ message: 'Title and body are required' }, { status: 400 });
     }
 
     const now = new Date().toISOString();
@@ -32,12 +37,11 @@ export async function POST(request: Request) {
       title,
       body: tipBody,
       category: body.category || 'other',
-      createdBy: body.createdBy,
+      createdBy: user.key,
       createdAt: now,
       updatedAt: now,
     };
 
-    const db = await getDb();
     const result = await db.collection('healthTips').insertOne(tip);
 
     return NextResponse.json({ tip: { ...tip, _id: result.insertedId.toString() } }, { status: 201 });
