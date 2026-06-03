@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
-import { createSession, readEmailToken } from '@/lib/auth';
+import { createSession, readEmailToken, type SessionUser } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
@@ -17,7 +17,8 @@ export async function POST(request: Request) {
       { returnDocument: 'after' }
     );
     if (!result) return NextResponse.json({ message: 'User not found' }, { status: 404 });
-    const user = { id: String(result._id), name: String(result.name), email: String(result.email), key: `user:${String(result._id)}`, emailVerified: true };
+    const role: SessionUser['role'] = result.role === 'admin' ? 'admin' : 'user';
+    const user: SessionUser = { id: String(result._id), name: String(result.name), email: String(result.email), key: `user:${String(result._id)}`, emailVerified: true, role };
     await createSession(user);
     return NextResponse.json({ user });
   } catch (error) {

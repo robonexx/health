@@ -62,7 +62,7 @@ const languageNames: Record<LanguageCode, string> = { sv: 'Svenska', en: 'Englis
 const languageShortNames: Record<LanguageCode, string> = { sv: 'SV', en: 'EN', fi: 'FI', es: 'ES', pt: 'PT', fr: 'FR', ja: 'JP', zh: 'CN' };
 const languageFlags: Record<LanguageCode, string> = { sv: '🇸🇪', en: '🇬🇧', fi: '🇫🇮', es: '🇪🇸', pt: '🇵🇹', fr: '🇫🇷', ja: '🇯🇵', zh: '🇨🇳' };
 const allLanguages = Object.keys(languageNames) as LanguageCode[];
-const uiText: Record<LanguageCode, { shared: string; today: string; calendar: string; bank: string; training: string; publish: string; copy: string; sharedSubtitle: string; language: string; personalPlan: string; healthTips: string; shareWithFriends: string; createGroup: string; invite: string; logout: string; welcomeKicker: string; login: string; signup: string; welcomeBack: string; authTitle: string; authSubtitle: string; name: string; email: string; password: string; confirmationNote: string; loginCta: string; signupCta: string; switchToLogin: string; switchToSignup: string; heroMealTitle: string; heroMealMeta: string; heroTrainingTitle: string; heroTrainingMeta: string; heroShareTitle: string; heroShareMeta: string; }> = {
+const uiText: Record<LanguageCode, Record<string, string>> = {
   sv: { shared: 'Delade planer', today: 'Dagens plan', calendar: 'Kalender', bank: 'Bank', training: 'Träning', publish: 'Publicera', copy: 'Kopiera', sharedSubtitle: 'Hitta inspiration från andra och kopiera en måltid, dagsplan eller veckoplan till din egen kalender.', language: 'Språk', personalPlan: 'Min privata plan', healthTips: 'Hälsotips', shareWithFriends: 'Dela med vänner', createGroup: 'Skapa grupp', invite: 'Bjud in', logout: 'Logga ut', welcomeKicker: 'Welcome to Your Health', login: 'Logga in', signup: 'Skapa konto', welcomeBack: 'Välkommen tillbaka', authTitle: 'Build your health rhythm.', authSubtitle: 'Skapa måltidsplaner, spara dina bästa måltider, planera träning, bygg dag- och veckoplaner och dela inspiration med familj eller vänner.', name: 'Namn', email: 'Email', password: 'Lösenord minst 8 tecken', confirmationNote: 'Kontot skapas direkt. Du får bara ett välkomstmail med en kort introduktion till appen.', loginCta: 'Öppna dashboard', signupCta: 'Skapa konto', switchToLogin: 'Har du redan konto? Logga in', switchToSignup: 'Inget konto än? Skapa konto', heroMealTitle: 'Planera veckan', heroMealMeta: 'Frukost, lunch, mellis, middag', heroTrainingTitle: 'Spara aktiviteter', heroTrainingMeta: 'Dagsplaner och veckoplaner', heroShareTitle: 'Inspirera varandra', heroShareMeta: 'Privat eller grupp upp till 10 personer' },
   en: { shared: 'Shared plans', today: 'Today', calendar: 'Calendar', bank: 'Bank', training: 'Training', publish: 'Publish', copy: 'Copy', sharedSubtitle: 'Find inspiration from others and copy a meal, day plan or week plan to your own calendar.', language: 'Language', personalPlan: 'My private plan', healthTips: 'Health tips', shareWithFriends: 'Share with friends', createGroup: 'Create group', invite: 'Invite', logout: 'Log out', welcomeKicker: 'Welcome to Your Health', login: 'Log in', signup: 'Sign up', welcomeBack: 'Welcome back', authTitle: 'Build your health rhythm.', authSubtitle: 'Create meal plans, save your best meals, plan training, build day and week plans and share inspiration with family or friends.', name: 'Name', email: 'Email', password: 'Password, at least 8 characters', confirmationNote: 'Your account opens directly. You only receive a welcome email with a short introduction to the app.', loginCta: 'Open dashboard', signupCta: 'Create account', switchToLogin: 'Already have an account? Log in', switchToSignup: 'No account yet? Sign up', heroMealTitle: 'Plan your week', heroMealMeta: 'Breakfast, lunch, snacks, dinner', heroTrainingTitle: 'Save activities', heroTrainingMeta: 'Day plans and week plans', heroShareTitle: 'Inspire each other', heroShareMeta: 'Private or group up to 10 people' },
   fi: { shared: 'Jaetut suunnitelmat', today: 'Tänään', calendar: 'Kalenteri', bank: 'Pankki', training: 'Treeni', publish: 'Julkaise', copy: 'Kopioi', sharedSubtitle: 'Löydä inspiraatiota muilta ja kopioi ateria, päivä- tai viikkosuunnitelma omaan kalenteriin.', language: 'Kieli', personalPlan: 'Oma suunnitelma', healthTips: 'Terveysvinkit', shareWithFriends: 'Jaa ystäville', createGroup: 'Luo ryhmä', invite: 'Kutsu', logout: 'Kirjaudu ulos', welcomeKicker: 'Welcome to Your Health', login: 'Kirjaudu', signup: 'Luo tili', welcomeBack: 'Tervetuloa takaisin', authTitle: 'Rakenna oma terveysrytmi.', authSubtitle: 'Luo ateriasuunnitelmia, tallenna suosikkiateriat, suunnittele treenit ja jaa inspiraatiota perheen tai ystävien kanssa.', name: 'Nimi', email: 'Email', password: 'Salasana, vähintään 8 merkkiä', confirmationNote: 'Tili avautuu heti. Saat vain tervetulosähköpostin, jossa on lyhyt esittely sovelluksesta.', loginCta: 'Avaa dashboard', signupCta: 'Luo tili', switchToLogin: 'Onko sinulla jo tili? Kirjaudu', switchToSignup: 'Ei tiliä? Luo tili', heroMealTitle: 'Suunnittele viikko', heroMealMeta: 'Aamiainen, lounas, välipala, illallinen', heroTrainingTitle: 'Tallenna aktiviteetit', heroTrainingMeta: 'Päivä- ja viikkosuunnitelmat', heroShareTitle: 'Inspiroikaa toisianne', heroShareMeta: 'Yksityinen tai ryhmä, max 10 henkilöä' },
@@ -73,14 +73,28 @@ const uiText: Record<LanguageCode, { shared: string; today: string; calendar: st
   zh: { shared: '共享计划', today: '今天', calendar: '日历', bank: '资料库', training: '训练', publish: '发布', copy: '复制', sharedSubtitle: '从他人的计划获得灵感，并复制餐食、日计划或周计划到自己的日历。', language: '语言', personalPlan: '我的私人计划', healthTips: '健康提示', shareWithFriends: '与朋友分享', createGroup: '创建群组', invite: '邀请', logout: '退出登录', welcomeKicker: 'Welcome to Your Health', login: '登录', signup: '注册', welcomeBack: '欢迎回来', authTitle: '建立你的健康节奏。', authSubtitle: '创建餐食计划，保存喜欢的餐食，安排训练，建立日计划和周计划，并与家人朋友分享灵感。', name: '姓名', email: 'Email', password: '密码至少8个字符', confirmationNote: '账号会直接启用。你只会收到一封简短介绍应用的欢迎邮件。', loginCta: '打开仪表盘', signupCta: '创建账号', switchToLogin: '已有账号？登录', switchToSignup: '还没有账号？注册', heroMealTitle: '计划一周', heroMealMeta: '早餐、午餐、加餐、晚餐', heroTrainingTitle: '保存活动', heroTrainingMeta: '日计划和周计划', heroShareTitle: '互相启发', heroShareMeta: '私人或最多10人的群组' },
 };
 
+const extraText: Record<LanguageCode, Record<string, string>> = {
+  sv: { appName: 'DinHälsa', privatePlanShort: 'Privat plan', dashboard: 'dashboard', day: 'Dag', week: 'Vecka', ongoing: 'Pågående', workspace: 'Workspace', signedInAs: 'Inloggad som', members: 'medlemmar', newGroupPlaceholder: 'Ny grupp, t.ex. Familjen', friendEmailPlaceholder: 'vän@email.se', account: 'Konto', deleteAccount: 'Radera konto', deleteAccountNote: 'Raderar dina privata planer. Offentliga/delade planer finns kvar anonymt för andra.', mealPlanner: 'Måltidsplanerare', mealPlannerHelp: 'Sätt upp måltider, spara dagen, eller bygg hela veckan som en mall.', saveTodayPlan: 'Spara dagens plan', addMeal: '+ Måltid', saveFoodDay: 'Spara matdag', saveFullDay: 'Spara hel dag', saveWeek: 'Spara vecka', clear: 'Rensa', todayMeals: 'Dagens måltider', mealOverview: 'Måltidsöversikt', mealOverviewHelp: 'Kompakt vy. Klicka på pennan för att ändra namn, tid, innehåll och notes.', mealCount: 'måltider', selectedDay: 'Vald dag', weekPlans: 'Veckoplaner', applyWeekHelp: 'Applicera en sparad vecka på veckan där valt datum ligger.', noWeekPlans: 'Spara en vecka från Dagens plan så hamnar den här.', food: 'Mat', meals: 'Måltider', activities: 'Aktiviteter', todayButton: 'Idag', eatenToday: 'ätna idag', activitiesDone: 'aktiviteter klara', savedLibrary: 'Sparat bibliotek', bankHelp: 'Återanvänd privat, dela i grupp eller publicera som inspiration.', templates: 'mallar', savedActivities: 'Aktiviteter', dayPlans: 'Dagsplaner', oldTemplate: 'Gammal mall', useInsert: 'Använd / lägg in', noSavedMeals: 'Spara en måltid från ett måltidskort.', noSavedActivities: 'Spara en aktivitet från träningskortet.', noDayPlans: 'Spara matdag, träningsdag eller full dagsplan.', noSavedWeekPlans: 'Spara hela veckan från Dagens plan.', community: 'Community', copyTo: 'Kopieras till', public: 'publicerade', all: 'Alla', sharedMeals: 'Måltider', dayPlansFilter: 'Dagsplaner', weekPlansFilter: 'Veckoplaner', noPublishedPlans: 'Inga publicerade planer än. Publicera från din Bank så dyker de upp här.', trainingFilter: 'Träning', loading: 'Laddar...', plan: 'Plan', status: 'Status', todayCheck: 'Dagens check' },
+  en: { appName: 'Your Health', privatePlanShort: 'Private plan', dashboard: 'dashboard', day: 'Day', week: 'Week', ongoing: 'Ongoing', workspace: 'Workspace', signedInAs: 'Signed in as', members: 'members', newGroupPlaceholder: 'New group, e.g. Family', friendEmailPlaceholder: 'friend@email.com', account: 'Account', deleteAccount: 'Delete account', deleteAccountNote: 'Deletes your private plans. Public/shared plans stay anonymized for others.', mealPlanner: 'Meal planner', mealPlannerHelp: 'Set up meals, save the day, or build the full week as a template.', saveTodayPlan: 'Save today’s plan', addMeal: '+ Meal', saveFoodDay: 'Save food day', saveFullDay: 'Save full day', saveWeek: 'Save week', clear: 'Clear', todayMeals: 'Today’s meals', mealOverview: 'Meal overview', mealOverviewHelp: 'Compact view. Click the pen to edit name, time, content and notes.', mealCount: 'meals', selectedDay: 'Selected day', weekPlans: 'Week plans', applyWeekHelp: 'Apply a saved week to the week containing the selected date.', noWeekPlans: 'Save a week from Today’s plan and it will appear here.', food: 'Food', meals: 'Meals', activities: 'Activities', todayButton: 'Today', eatenToday: 'eaten today', activitiesDone: 'activities done', savedLibrary: 'Saved library', bankHelp: 'Reuse privately, share in a group, or publish as inspiration.', templates: 'templates', savedActivities: 'Activities', dayPlans: 'Day plans', oldTemplate: 'Old template', useInsert: 'Use / insert', noSavedMeals: 'Save a meal from a meal card.', noSavedActivities: 'Save an activity from the training card.', noDayPlans: 'Save a food day, training day or full day plan.', noSavedWeekPlans: 'Save the full week from Today’s plan.', community: 'Community', copyTo: 'Copied to', public: 'public', all: 'All', sharedMeals: 'Meals', dayPlansFilter: 'Day plans', weekPlansFilter: 'Week plans', noPublishedPlans: 'No published plans yet. Publish from your Bank and they will appear here.', trainingFilter: 'Training', loading: 'Loading...', plan: 'Plan', status: 'Status', todayCheck: 'Today’s check' },
+  fi: { privatePlanShort: 'Yksityinen suunnitelma', selectedDay: 'Valittu päivä', weekPlans: 'Viikkosuunnitelmat', meals: 'Ateriat', activities: 'Aktiviteetit', todayButton: 'Tänään', loading: 'Ladataan...' }, es: { privatePlanShort: 'Plan privado', selectedDay: 'Día seleccionado', weekPlans: 'Planes semanales', meals: 'Comidas', activities: 'Actividades', todayButton: 'Hoy', loading: 'Cargando...' }, pt: { privatePlanShort: 'Plano privado', selectedDay: 'Dia selecionado', weekPlans: 'Planos semanais', meals: 'Refeições', activities: 'Atividades', todayButton: 'Hoje', loading: 'A carregar...' }, fr: { privatePlanShort: 'Plan privé', selectedDay: 'Jour sélectionné', weekPlans: 'Plans hebdo', meals: 'Repas', activities: 'Activités', todayButton: 'Aujourd’hui', loading: 'Chargement...', mealPlanner: 'Planificateur de repas', savedLibrary: 'Bibliothèque sauvegardée', dayPlans: 'Plans journaliers', deleteAccount: 'Supprimer le compte', account: 'Compte' }, ja: { privatePlanShort: '個人プラン', selectedDay: '選択日', weekPlans: '週間プラン', meals: '食事', activities: '活動', todayButton: '今日', loading: '読み込み中...' }, zh: { privatePlanShort: '私人计划', selectedDay: '选中日期', weekPlans: '周计划', meals: '餐食', activities: '活动', todayButton: '今天', loading: '加载中...' },
+};
+(['sv','en','fi','es','pt','fr','ja','zh'] as LanguageCode[]).forEach((code) => { uiText[code] = { ...uiText.en, ...extraText.en, ...uiText[code], ...extraText[code] }; });
+const localeByLanguage: Record<LanguageCode, string> = { sv: 'sv-SE', en: 'en-US', fi: 'fi-FI', es: 'es-ES', pt: 'pt-PT', fr: 'fr-FR', ja: 'ja-JP', zh: 'zh-CN' };
+function tr(t: Record<string, string>, key: string, fallback: string) { return t[key] || uiText.en[key] || fallback; }
+function localizedWeekdays(language: LanguageCode) { const base = mondayOf(today()); return Array.from({ length: 7 }, (_, index) => toDate(addDays(base, index)).toLocaleDateString(localeByLanguage[language], { weekday: 'short' })); }
+function ownerLabel(owner: PlanOwner, currentUser: LoginUser | null | undefined, groups: HealthGroup[], t: Record<string, string>) { if (owner.startsWith('user:')) return tr(t, 'privatePlanShort', 'Private plan'); const group = groups.find((item) => `group:${item._id}` === owner); return group?.name || 'Shared plan'; }
+function displayPlanTitle(plan: MealPlan, owner: PlanOwner, currentUser: LoginUser, groups: HealthGroup[], t: Record<string, string>) { const lower = (plan.title || '').toLowerCase(); if (!plan._id || lower.includes('privat plan') || lower.includes('private plan') || lower.includes('dagens plan') || lower.includes('today')) return `${ownerLabel(owner, currentUser, groups, t)} · ${t.today}`; return plan.title; }
+function lengthText(length: PlanLength, t: Record<string, string>) { return length === 'week' ? tr(t, 'week', 'Week') : length === 'ongoing' ? tr(t, 'ongoing', 'Ongoing') : tr(t, 'day', 'Day'); }
+function kindText(kind: DayPlanKind, t: Record<string, string>) { return kind === 'training' ? t.training : kind === 'full' ? 'Food + training' : tr(t, 'food', 'Food'); }
+
 function today() { return new Date().toISOString().slice(0, 10); }
 function uid() { return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`; }
 function toDate(value: string) { return new Date(`${value}T12:00:00`); }
 function iso(date: Date) { return date.toISOString().slice(0, 10); }
 function parseItems(value: string) { return value.split(/,|\n/).map((item) => item.trim()).filter(Boolean); }
 function itemsToText(items: string[]) { return items.join('\n'); }
-function formatDate(value: string) { return toDate(value).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' }); }
-function monthLabel(value: string) { return toDate(value).toLocaleDateString('sv-SE', { month: 'long', year: 'numeric' }); }
+function formatDate(value: string, language: LanguageCode = 'en') { return toDate(value).toLocaleDateString(localeByLanguage[language], { weekday: 'long', day: 'numeric', month: 'long' }); }
+function monthLabel(value: string, language: LanguageCode = 'en') { return toDate(value).toLocaleDateString(localeByLanguage[language], { month: 'long', year: 'numeric' }); }
 function addDays(value: string, days: number) { const date = toDate(value); date.setDate(date.getDate() + days); return iso(date); }
 function monthStart(value: string) { const date = toDate(value); date.setDate(1); return iso(date); }
 function prevMonth(value: string) { const date = toDate(value); date.setMonth(date.getMonth() - 1, 1); return iso(date); }
@@ -466,32 +480,32 @@ export default function HealthApp() {
       <div className="relative z-10 mx-auto grid max-w-[1760px] gap-5 p-3 md:p-5 xl:grid-cols-[300px_minmax(0,1fr)]">
         <Sidebar owner={owner} currentUser={currentUser} groups={groups} activeOwner={owner} setActiveOwner={setActiveOwner} groupDraft={groupDraft} setGroupDraft={setGroupDraft} createGroup={createGroup} inviteToActiveGroup={inviteToActiveGroup} logout={logout} deleteAccount={deleteAccount} language={language} setLanguage={setLanguage} />
         <section className="min-w-0 space-y-5">
-          <Hero owner={owner} groups={groups} currentUser={currentUser} selectedDate={selectedDate} setSelectedDate={(date) => { setSelectedDate(date); setCalendarMonth(monthStart(date)); }} plan={plan} activities={ownerActivities} />
+          <Hero owner={owner} groups={groups} currentUser={currentUser} selectedDate={selectedDate} setSelectedDate={(date) => { setSelectedDate(date); setCalendarMonth(monthStart(date)); }} plan={plan} activities={ownerActivities} language={language} t={t} />
           <TabBar tab={tab} setTab={setTab} t={t} />
           {toast && <ToastCard toast={toast} />}
-          {isBusy && <div className="rounded-3xl border border-slate-200 bg-white/80 px-5 py-4 text-sm font-black text-slate-500">Laddar...</div>}
+          {isBusy && <div className="rounded-3xl border border-slate-200 bg-white/80 px-5 py-4 text-sm font-black text-slate-500">{tr(t, 'loading', 'Loading...')}</div>}
 
           {tab === 'today' && (
             <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_430px]">
               <section className="space-y-5">
-                <WeekStrip dates={selectedWeek} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
-                <PlannerHeader plan={plan} canEdit={canEdit} onTitle={(title) => patchPlan((p) => ({ ...p, title }))} onLength={(length) => patchPlan((p) => ({ ...p, length }))} onSave={() => savePlan()} onDelete={deletePlan} onSaveFoodDay={() => saveDayPlan('food')} onSaveFullDay={() => saveDayPlan('full')} onSaveWeek={saveWeekPlan} onAddMeal={openCreateMealModal} />
-                <MealOverview meals={plan.meals} canEdit={canEdit} currentUser={currentUser.key} onToggle={toggleMeal} onEdit={openEditMealModal} onRemove={removeMeal} onSaveMeal={(meal) => saveMealTemplate(meal)} />
+                <WeekStrip dates={selectedWeek} selectedDate={selectedDate} setSelectedDate={setSelectedDate} language={language} />
+                <PlannerHeader plan={plan} canEdit={canEdit} t={t} onTitle={(title) => patchPlan((p) => ({ ...p, title }))} onLength={(length) => patchPlan((p) => ({ ...p, length }))} onSave={() => savePlan()} onDelete={deletePlan} onSaveFoodDay={() => saveDayPlan('food')} onSaveFullDay={() => saveDayPlan('full')} onSaveWeek={saveWeekPlan} onAddMeal={openCreateMealModal} />
+                <MealOverview t={t} meals={plan.meals} canEdit={canEdit} currentUser={currentUser.key} onToggle={toggleMeal} onEdit={openEditMealModal} onRemove={removeMeal} onSaveMeal={(meal) => saveMealTemplate(meal)} />
               </section>
               <aside className="space-y-5 2xl:sticky 2xl:top-5 2xl:self-start">
-                <ProgressPanel plan={plan} activities={ownerActivities} currentUser={currentUser.key} />
-                <TrainingPanel activities={ownerActivities} canEdit={canEdit} currentUser={currentUser.key} draft={activityDraft} setDraft={setActivityDraft} addActivity={() => addActivity()} updateActivity={updateActivity} deleteActivity={deleteActivity} saveActivity={saveActivityTemplate} saveTrainingDay={() => saveDayPlan('training')} />
+                <ProgressPanel t={t} plan={plan} activities={ownerActivities} currentUser={currentUser.key} />
+                <TrainingPanel t={t} activities={ownerActivities} canEdit={canEdit} currentUser={currentUser.key} draft={activityDraft} setDraft={setActivityDraft} addActivity={() => addActivity()} updateActivity={updateActivity} deleteActivity={deleteActivity} saveActivity={saveActivityTemplate} saveTrainingDay={() => saveDayPlan('training')} />
               </aside>
             </div>
           )}
 
-          {tab === 'calendar' && <CalendarPanel calendarMonth={calendarMonth} setCalendarMonth={setCalendarMonth} days={calendarDays} selectedDate={selectedDate} selectDate={(date) => { setSelectedDate(date); setTab('today'); }} weekPlans={ownerWeekPlans} applyWeekPlan={applyWeekPlan} deleteWeekPlan={deleteWeekPlan} />}
+          {tab === 'calendar' && <CalendarPanel language={language} t={t} calendarMonth={calendarMonth} setCalendarMonth={setCalendarMonth} days={calendarDays} selectedDate={selectedDate} selectDate={(date) => { setSelectedDate(date); setTab('today'); }} weekPlans={ownerWeekPlans} applyWeekPlan={applyWeekPlan} deleteWeekPlan={deleteWeekPlan} />}
 
-          {tab === 'bank' && <BankPanel meals={ownerSavedMeals} activities={ownerSavedActivities} dayPlans={ownerDayPlans} weekPlans={ownerWeekPlans} oldDayTemplates={ownerOldDayTemplates} addSavedMeal={(meal) => addMeal({ title: meal.title, time: meal.time, items: meal.items, notes: meal.notes })} updateSavedMeal={updateMealTemplate} addSavedActivity={(activity) => addActivity(activity)} useDayPlan={useDayPlan} applyWeekPlan={applyWeekPlan} deleteMeal={deleteMealTemplate} deleteSavedActivity={deleteSavedActivity} deleteDayPlan={deleteDayPlan} deleteWeekPlan={deleteWeekPlan} publishMeal={publishMeal} publishDay={publishDay} publishWeek={publishWeek} t={t} />}
+          {tab === 'bank' && <BankPanel t={t} meals={ownerSavedMeals} activities={ownerSavedActivities} dayPlans={ownerDayPlans} weekPlans={ownerWeekPlans} oldDayTemplates={ownerOldDayTemplates} addSavedMeal={(meal) => addMeal({ title: meal.title, time: meal.time, items: meal.items, notes: meal.notes })} updateSavedMeal={updateMealTemplate} addSavedActivity={(activity) => addActivity(activity)} useDayPlan={useDayPlan} applyWeekPlan={applyWeekPlan} deleteMeal={deleteMealTemplate} deleteSavedActivity={deleteSavedActivity} deleteDayPlan={deleteDayPlan} deleteWeekPlan={deleteWeekPlan} publishMeal={publishMeal} publishDay={publishDay} publishWeek={publishWeek} />}
 
-          {tab === 'shared' && <SharedPlansPanel plans={publicPlans} currentUser={currentUser} selectedDate={selectedDate} copyPlan={copySharedPlan} deletePlan={async (id) => { if (!id) return; await fetch(`/api/shared-plans/${id}`, { method: 'DELETE' }); await refreshData(); showToast('Delad plan är borttagen.'); }} t={t} />}
+          {tab === 'shared' && <SharedPlansPanel language={language} plans={publicPlans} currentUser={currentUser} selectedDate={selectedDate} copyPlan={copySharedPlan} deletePlan={async (id) => { if (!id) return; await fetch(`/api/shared-plans/${id}`, { method: 'DELETE' }); await refreshData(); showToast('Delad plan är borttagen.'); }} t={t} />}
 
-          {tab === 'training' && <TrainingPanel activities={ownerActivities} canEdit={canEdit} currentUser={currentUser.key} draft={activityDraft} setDraft={setActivityDraft} addActivity={() => addActivity()} updateActivity={updateActivity} deleteActivity={deleteActivity} saveActivity={saveActivityTemplate} saveTrainingDay={() => saveDayPlan('training')} large />}
+          {tab === 'training' && <TrainingPanel t={t} activities={ownerActivities} canEdit={canEdit} currentUser={currentUser.key} draft={activityDraft} setDraft={setActivityDraft} addActivity={() => addActivity()} updateActivity={updateActivity} deleteActivity={deleteActivity} saveActivity={saveActivityTemplate} saveTrainingDay={() => saveDayPlan('training')} large />}
 
           {mealModalMode === 'create' && (
             <MealModal
@@ -639,14 +653,14 @@ function Sidebar({ owner, currentUser, groups, activeOwner, setActiveOwner, grou
           <div className="flex items-center gap-3">
             <div className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-400 text-xl font-black text-slate-950">H</div>
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-white/40">DinHälsa</p>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-white/40">{t.appName}</p>
               <h2 className="text-2xl font-black tracking-[-0.07em]">2026</h2>
             </div>
           </div>
           <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-200">Workspace</p>
-            <p className="mt-2 text-lg font-black">{getOwnerLabel(owner, currentUser, groups)}</p>
-            <p className="mt-1 text-sm font-semibold text-white/50">Inloggad som {currentUser.name}</p>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-200">{tr(t, 'workspace', 'Workspace')}</p>
+            <p className="mt-2 text-lg font-black">{ownerLabel(owner, currentUser, groups, t)}</p>
+            <p className="mt-1 text-sm font-semibold text-white/50">{tr(t, 'signedInAs', 'Signed in as')} {currentUser.name}</p>
           </div>
         </div>
         <nav className="mt-3 space-y-2 rounded-[1.65rem] bg-black/20 p-3 ring-1 ring-white/10">
@@ -658,11 +672,11 @@ function Sidebar({ owner, currentUser, groups, activeOwner, setActiveOwner, grou
         </nav>
         <div className="mt-3 rounded-[1.65rem] border border-white/10 bg-white/[0.06] p-3">
           <p className="px-2 text-xs font-black uppercase tracking-[0.22em] text-white/35">{t.shareWithFriends}</p>
-          <input className={`${darkInput} mt-3 py-2`} value={groupDraft.name} onChange={(event) => setGroupDraft({ ...groupDraft, name: event.target.value })} placeholder="Ny grupp, t.ex. Familjen" />
+          <input className={`${darkInput} mt-3 py-2`} value={groupDraft.name} onChange={(event) => setGroupDraft({ ...groupDraft, name: event.target.value })} placeholder={tr(t, 'newGroupPlaceholder', 'New group')} />
           <button onClick={createGroup} className={`${softDarkButton} mt-2 w-full py-2`}>{t.createGroup}</button>
           {selectedGroup && <div className="mt-3 rounded-2xl bg-black/20 p-3">
-            <p className="text-xs font-black text-white/45">{selectedGroup.members?.length || 0}/10 medlemmar</p>
-            <input className={`${darkInput} mt-2 py-2`} value={groupDraft.inviteEmail} onChange={(event) => setGroupDraft({ ...groupDraft, inviteEmail: event.target.value })} placeholder="vän@email.se" />
+            <p className="text-xs font-black text-white/45">{selectedGroup.members?.length || 0}/10 {tr(t, 'members', 'members')}</p>
+            <input className={`${darkInput} mt-2 py-2`} value={groupDraft.inviteEmail} onChange={(event) => setGroupDraft({ ...groupDraft, inviteEmail: event.target.value })} placeholder={tr(t, 'friendEmailPlaceholder', 'friend@email.com')} />
             <button onClick={inviteToActiveGroup} className={`${greenButton} mt-2 w-full py-2`}>{t.invite}</button>
           </div>}
         </div>
@@ -674,10 +688,10 @@ function Sidebar({ owner, currentUser, groups, activeOwner, setActiveOwner, grou
           </div>
         </div>
         <div className="mt-3 rounded-[1.65rem] border border-white/10 bg-white/[0.06] p-3">
-          <p className="px-2 text-xs font-black uppercase tracking-[0.22em] text-white/35">Account</p>
+          <p className="px-2 text-xs font-black uppercase tracking-[0.22em] text-white/35">{tr(t, 'account', 'Account')}</p>
           <button onClick={logout} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 text-sm font-black text-white/70 transition hover:bg-white/[0.12] hover:text-white">{t.logout}</button>
-          <button onClick={deleteAccount} className="mt-2 w-full rounded-2xl border border-rose-300/20 bg-rose-400/10 px-4 py-3 text-sm font-black text-rose-100 transition hover:bg-rose-400/20 hover:text-white">Delete account</button>
-          <p className="mt-2 px-2 text-[0.68rem] font-bold leading-5 text-white/35">Deletes your private plans. Public/shared plans stay anonymized for others.</p>
+          <button onClick={deleteAccount} className="mt-2 w-full rounded-2xl border border-rose-300/20 bg-rose-400/10 px-4 py-3 text-sm font-black text-rose-100 transition hover:bg-rose-400/20 hover:text-white">{tr(t, 'deleteAccount', 'Delete account')}</button>
+          <p className="mt-2 px-2 text-[0.68rem] font-bold leading-5 text-white/35">{tr(t, 'deleteAccountNote', 'Deletes your private plans. Public/shared plans stay anonymized for others.')}</p>
         </div>
       </div>
     </aside>
@@ -693,7 +707,7 @@ function NavLink({ href, icon, label, active }: { href: string; icon: string; la
   );
 }
 
-function Hero({ owner, groups, currentUser, selectedDate, setSelectedDate, plan, activities }: { owner: PlanOwner; groups: HealthGroup[]; currentUser: LoginUser; selectedDate: string; setSelectedDate: (date: string) => void; plan: MealPlan; activities: Activity[] }) {
+function Hero({ owner, groups, currentUser, selectedDate, setSelectedDate, plan, activities, language, t }: { owner: PlanOwner; groups: HealthGroup[]; currentUser: LoginUser; selectedDate: string; setSelectedDate: (date: string) => void; plan: MealPlan; activities: Activity[]; language: LanguageCode; t: Record<string, string> }) {
   const doneMeals = completedMeals(plan, currentUser.key);
   const totalMeals = mealTotal(plan);
   const doneActivities = completedActivities(activities, currentUser.key);
@@ -705,20 +719,20 @@ function Hero({ owner, groups, currentUser, selectedDate, setSelectedDate, plan,
           <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-emerald-300/25 blur-3xl" />
           <div className="relative">
             <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1.5 text-[0.62rem] font-black uppercase tracking-[0.18em] text-emerald-100 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.26em]">{getOwnerLabel(owner, currentUser, groups)} dashboard</span>
-              <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-[0.62rem] font-black uppercase tracking-[0.16em] text-white/50 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.22em]">{lengthLabel[plan.length]}</span>
+              <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1.5 text-[0.62rem] font-black uppercase tracking-[0.18em] text-emerald-100 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.26em]">{ownerLabel(owner, currentUser, groups, t)} {tr(t, 'dashboard', 'dashboard')}</span>
+              <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-[0.62rem] font-black uppercase tracking-[0.16em] text-white/50 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.22em]">{lengthText(plan.length, t)}</span>
             </div>
-            <h1 className="mt-4 max-w-3xl text-[2.45rem] font-black leading-[0.92] tracking-[-0.08em] sm:text-5xl md:mt-6 md:text-7xl">{plan.title}</h1>
-            <p className="mt-3 text-sm font-semibold capitalize text-white/50 sm:text-base md:mt-5 md:text-lg">{formatDate(selectedDate)} · {currentUser.name}</p>
+            <h1 className="mt-4 max-w-3xl text-[2.45rem] font-black leading-[0.92] tracking-[-0.08em] sm:text-5xl md:mt-6 md:text-7xl">{displayPlanTitle(plan, owner, currentUser, groups, t)}</h1>
+            <p className="mt-3 text-sm font-semibold capitalize text-white/50 sm:text-base md:mt-5 md:text-lg">{formatDate(selectedDate, language)} · {currentUser.name}</p>
             <div className="mt-5 flex flex-wrap gap-2 sm:gap-3 md:mt-7">
               <input className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-xs font-black text-white outline-none [color-scheme:dark] sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm" type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />
-              <button onClick={() => setSelectedDate(today())} className="rounded-xl border border-white/10 bg-white/10 px-3 py-2.5 text-xs font-black text-white/75 transition hover:bg-white/15 hover:text-white sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">Idag</button>
+              <button onClick={() => setSelectedDate(today())} className="rounded-xl border border-white/10 bg-white/10 px-3 py-2.5 text-xs font-black text-white/75 transition hover:bg-white/15 hover:text-white sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">{tr(t, 'todayButton', 'Today')}</button>
             </div>
           </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-          <MetricCard title="Måltider" value={`${doneMeals}/${totalMeals}`} note="ätna idag" tone="green" />
-          <MetricCard title="Träning" value={`${doneActivities}/${totalActivities}`} note="aktiviteter klara" tone="blue" />
+          <MetricCard title={tr(t, 'meals', 'Meals')} value={`${doneMeals}/${totalMeals}`} note={tr(t, 'eatenToday', 'eaten today')} tone="green" />
+          <MetricCard title={t.training} value={`${doneActivities}/${totalActivities}`} note={tr(t, 'activitiesDone', 'activities done')} tone="blue" />
         </div>
       </div>
     </section>
@@ -736,7 +750,7 @@ function MetricCard({ title, value, note, tone }: { title: string; value: string
   );
 }
 
-function TabBar({ tab, setTab, t }: { tab: Tab; setTab: (tab: Tab) => void; t: (typeof uiText)[LanguageCode] }) {
+function TabBar({ tab, setTab, t }: { tab: Tab; setTab: (tab: Tab) => void; t: Record<string, string> }) {
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: 'today', label: t.today, icon: '☑' },
     { id: 'calendar', label: t.calendar, icon: '◷' },
@@ -757,7 +771,7 @@ function TabBar({ tab, setTab, t }: { tab: Tab; setTab: (tab: Tab) => void; t: (
   );
 }
 
-function WeekStrip({ dates, selectedDate, setSelectedDate }: { dates: string[]; selectedDate: string; setSelectedDate: (date: string) => void }) {
+function WeekStrip({ dates, selectedDate, setSelectedDate, language }: { dates: string[]; selectedDate: string; setSelectedDate: (date: string) => void; language: LanguageCode }) {
   return (
     <section className="grid grid-cols-7 gap-1.5 sm:gap-2 md:gap-3">
       {dates.map((date, index) => {
@@ -765,9 +779,9 @@ function WeekStrip({ dates, selectedDate, setSelectedDate }: { dates: string[]; 
         const parsed = toDate(date);
         return (
           <button key={date} onClick={() => setSelectedDate(date)} className={`group min-w-0 overflow-hidden rounded-2xl border px-1 py-2 text-center shadow-lg transition hover:-translate-y-0.5 sm:rounded-[1.25rem] sm:px-2 sm:py-3 md:rounded-[1.55rem] md:p-4 md:text-left md:shadow-xl ${active ? 'border-emerald-300/35 bg-emerald-300 text-slate-950 shadow-emerald-900/20' : 'border-white/10 bg-white/[0.08] text-white backdrop-blur-xl hover:bg-white/[0.12]'}`}>
-            <p className={`truncate text-[0.58rem] font-black uppercase tracking-[0.08em] sm:text-[0.65rem] sm:tracking-[0.14em] md:text-xs md:tracking-[0.2em] ${active ? 'text-slate-700' : 'text-white/40'}`}>{weekdays[index]}</p>
+            <p className={`truncate text-[0.58rem] font-black uppercase tracking-[0.08em] sm:text-[0.65rem] sm:tracking-[0.14em] md:text-xs md:tracking-[0.2em] ${active ? 'text-slate-700' : 'text-white/40'}`}>{localizedWeekdays(language)[index]}</p>
             <p className="mt-1 text-xl font-black tracking-[-0.08em] sm:text-2xl md:mt-2 md:text-3xl">{parsed.getDate()}</p>
-            <p className={`mt-0.5 truncate text-[0.6rem] font-bold capitalize sm:text-xs md:mt-1 ${active ? 'text-slate-700' : 'text-white/40'}`}>{parsed.toLocaleDateString('sv-SE', { month: 'short' })}</p>
+            <p className={`mt-0.5 truncate text-[0.6rem] font-bold capitalize sm:text-xs md:mt-1 ${active ? 'text-slate-700' : 'text-white/40'}`}>{parsed.toLocaleDateString(localeByLanguage[language], { month: 'short' })}</p>
           </button>
         );
       })}
@@ -775,48 +789,48 @@ function WeekStrip({ dates, selectedDate, setSelectedDate }: { dates: string[]; 
   );
 }
 
-function PlannerHeader({ plan, canEdit, onTitle, onLength, onSave, onDelete, onSaveFoodDay, onSaveFullDay, onSaveWeek, onAddMeal }: { plan: MealPlan; canEdit: boolean; onTitle: (title: string) => void; onLength: (length: PlanLength) => void; onSave: () => void; onDelete: () => void; onSaveFoodDay: () => void; onSaveFullDay: () => void; onSaveWeek: () => void; onAddMeal: () => void }) {
+function PlannerHeader({ plan, canEdit, t, onTitle, onLength, onSave, onDelete, onSaveFoodDay, onSaveFullDay, onSaveWeek, onAddMeal }: { plan: MealPlan; canEdit: boolean; t: Record<string, string>; onTitle: (title: string) => void; onLength: (length: PlanLength) => void; onSave: () => void; onDelete: () => void; onSaveFoodDay: () => void; onSaveFullDay: () => void; onSaveWeek: () => void; onAddMeal: () => void }) {
   return (
     <section className={`${card} p-5 md:p-6`}>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
         <div>
-          <p className="eyebrow">Meal planner</p>
+          <p className="eyebrow">{tr(t, 'mealPlanner', 'Meal planner')}</p>
           <input disabled={!canEdit} className="mt-2 w-full border-0 bg-transparent text-4xl font-black tracking-[-0.08em] text-white outline-none placeholder:text-white/20 md:text-5xl" value={plan.title} onChange={(event) => onTitle(event.target.value)} />
-          <p className="mt-3 text-sm font-semibold text-white/40">Sätt upp måltider, spara dagen, eller bygg hela veckan som en mall.</p>
+          <p className="mt-3 text-sm font-semibold text-white/40">{tr(t, 'mealPlannerHelp', 'Set up meals, save the day, or build the full week as a template.')}</p>
         </div>
         <div className="grid gap-3">
           <select disabled={!canEdit} className={darkInput} value={plan.length} onChange={(event) => onLength(event.target.value as PlanLength)}>
-            <option value="day">Dag</option>
-            <option value="week">Vecka</option>
-            <option value="ongoing">Pågående</option>
+            <option value="day">{tr(t, 'day', 'Day')}</option>
+            <option value="week">{tr(t, 'week', 'Week')}</option>
+            <option value="ongoing">{tr(t, 'ongoing', 'Ongoing')}</option>
           </select>
-          <button disabled={!canEdit} onClick={onSave} className={greenButton}>Spara dagens plan</button>
+          <button disabled={!canEdit} onClick={onSave} className={greenButton}>{tr(t, 'saveTodayPlan', 'Save today plan')}</button>
         </div>
       </div>
       <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-        <button disabled={!canEdit} onClick={onAddMeal} className={softDarkButton}>+ Måltid</button>
-        <button disabled={!canEdit} onClick={onSaveFoodDay} className={softDarkButton}>Spara matdag</button>
-        <button disabled={!canEdit} onClick={onSaveFullDay} className={softDarkButton}>Spara hel dag</button>
-        <button disabled={!canEdit} onClick={onSaveWeek} className={primaryButton}>Spara vecka</button>
-        <button disabled={!canEdit || !plan._id} onClick={onDelete} className={dangerButton}>Rensa</button>
+        <button disabled={!canEdit} onClick={onAddMeal} className={softDarkButton}>{tr(t, 'addMeal', '+ Meal')}</button>
+        <button disabled={!canEdit} onClick={onSaveFoodDay} className={softDarkButton}>{tr(t, 'saveFoodDay', 'Save food day')}</button>
+        <button disabled={!canEdit} onClick={onSaveFullDay} className={softDarkButton}>{tr(t, 'saveFullDay', 'Save full day')}</button>
+        <button disabled={!canEdit} onClick={onSaveWeek} className={primaryButton}>{tr(t, 'saveWeek', 'Save week')}</button>
+        <button disabled={!canEdit || !plan._id} onClick={onDelete} className={dangerButton}>{tr(t, 'clear', 'Clear')}</button>
       </div>
     </section>
   );
 }
 
-function MealOverview({ meals, canEdit, currentUser, onToggle, onEdit, onRemove, onSaveMeal }: { meals: Meal[]; canEdit: boolean; currentUser: UserKey; onToggle: (mealId: string) => void; onEdit: (mealId: string) => void; onRemove: (mealId: string) => void; onSaveMeal: (meal: Meal) => void }) {
+function MealOverview({ meals, canEdit, currentUser, onToggle, onEdit, onRemove, onSaveMeal, t }: { meals: Meal[]; canEdit: boolean; t: Record<string, string>; currentUser: UserKey; onToggle: (mealId: string) => void; onEdit: (mealId: string) => void; onRemove: (mealId: string) => void; onSaveMeal: (meal: Meal) => void }) {
   return (
     <section className={`${card} p-5 md:p-6`}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow">Today meals</p>
-          <h3 className="mt-2 text-4xl font-black tracking-[-0.08em] text-white">Måltidsöversikt</h3>
-          <p className="mt-2 text-sm font-semibold text-white/40">Kompakt vy. Klicka på pennan för att ändra namn, tid, innehåll och notes.</p>
+          <p className="eyebrow">{tr(t, 'todayMeals', 'Today meals')}</p>
+          <h3 className="mt-2 text-4xl font-black tracking-[-0.08em] text-white">{tr(t, 'mealOverview', 'Meal overview')}</h3>
+          <p className="mt-2 text-sm font-semibold text-white/40">{tr(t, 'mealOverviewHelp', 'Compact view. Click the pen to edit.')}</p>
         </div>
-        <div className="rounded-full border border-white/10 bg-white/[0.07] px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-white/50">{meals.length} måltider</div>
+        <div className="rounded-full border border-white/10 bg-white/[0.07] px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-white/50">{meals.length} {tr(t, 'mealCount', 'meals')}</div>
       </div>
       <div className="mt-5 space-y-3">
-        <Empty show={meals.length === 0} text="Ingen måltid skapad ännu. Tryck på + Måltid för att lägga in frukost, mellanmål, lunch eller kvällsmål." />
+        <Empty show={meals.length === 0} text={tr(t, 'noMealsYet', 'No meal created yet.')} />
         {meals.map((meal) => {
           const done = Boolean(meal.completedBy[currentUser]);
           return (
@@ -965,7 +979,7 @@ function ModalFrame({ title, subtitle, children, onClose }: { title: string; sub
   );
 }
 
-function TrainingPanel({ activities, canEdit, currentUser, draft, setDraft, addActivity, updateActivity, deleteActivity, saveActivity, saveTrainingDay, large }: { activities: Activity[]; canEdit: boolean; currentUser: UserKey; draft: { title: string; time: string; comment: string }; setDraft: (draft: { title: string; time: string; comment: string }) => void; addActivity: () => void; updateActivity: (activity: Activity, patch: Partial<Activity>) => void; deleteActivity: (id?: string) => void; saveActivity: (activity: Activity) => void; saveTrainingDay: () => void; large?: boolean }) {
+function TrainingPanel({ activities, canEdit, currentUser, draft, setDraft, addActivity, updateActivity, deleteActivity, saveActivity, saveTrainingDay, large, t }: { activities: Activity[]; t: Record<string, string>; canEdit: boolean; currentUser: UserKey; draft: { title: string; time: string; comment: string }; setDraft: (draft: { title: string; time: string; comment: string }) => void; addActivity: () => void; updateActivity: (activity: Activity, patch: Partial<Activity>) => void; deleteActivity: (id?: string) => void; saveActivity: (activity: Activity) => void; saveTrainingDay: () => void; large?: boolean }) {
   return (
     <section className={`${card} p-5 md:p-6 ${large ? 'max-w-5xl' : ''}`}>
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1013,25 +1027,25 @@ function TrainingPanel({ activities, canEdit, currentUser, draft, setDraft, addA
   );
 }
 
-function CalendarPanel({ calendarMonth, setCalendarMonth, days, selectedDate, selectDate, weekPlans, applyWeekPlan, deleteWeekPlan }: { calendarMonth: string; setCalendarMonth: (date: string) => void; days: CalendarDay[]; selectedDate: string; selectDate: (date: string) => void; weekPlans: SavedWeekPlan[]; applyWeekPlan: (plan: SavedWeekPlan) => void; deleteWeekPlan: (id?: string) => void }) {
+function CalendarPanel({ calendarMonth, setCalendarMonth, days, selectedDate, selectDate, weekPlans, applyWeekPlan, deleteWeekPlan, language, t }: { calendarMonth: string; language: LanguageCode; t: Record<string, string>; setCalendarMonth: (date: string) => void; days: CalendarDay[]; selectedDate: string; selectDate: (date: string) => void; weekPlans: SavedWeekPlan[]; applyWeekPlan: (plan: SavedWeekPlan) => void; deleteWeekPlan: (id?: string) => void }) {
   const activeDay = days.find((day) => day.date === selectedDate);
   return (
     <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_390px]">
       <section className={`${card} p-4 md:p-5`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="eyebrow">Calendar</p>
-            <h2 className="mt-2 text-4xl font-black capitalize tracking-[-0.08em] text-white md:text-5xl">{monthLabel(calendarMonth)}</h2>
-            <p className="mt-2 text-sm font-semibold text-white/40">Desktop: kompakt full view med datumrutor bredvid varandra.</p>
+            <p className="eyebrow">{t.calendar}</p>
+            <h2 className="mt-2 text-4xl font-black capitalize tracking-[-0.08em] text-white md:text-5xl">{monthLabel(calendarMonth, language)}</h2>
+            <p className="mt-2 text-sm font-semibold text-white/40"></p>
           </div>
           <div className="flex gap-2">
             <button className={softDarkButton} onClick={() => setCalendarMonth(prevMonth(calendarMonth))}>←</button>
-            <button className={softDarkButton} onClick={() => setCalendarMonth(monthStart(today()))}>Idag</button>
+            <button className={softDarkButton} onClick={() => setCalendarMonth(monthStart(today()))}>{tr(t, 'todayButton', 'Today')}</button>
             <button className={softDarkButton} onClick={() => setCalendarMonth(nextMonth(calendarMonth))}>→</button>
           </div>
         </div>
         <div className="mt-5 grid grid-cols-7 gap-1.5 md:gap-2">
-          {weekdays.map((day) => <p key={day} className="px-1 text-center text-[10px] font-black uppercase tracking-[0.16em] text-white/35 md:text-xs">{day}</p>)}
+          {localizedWeekdays(language).map((day) => <p key={day} className="px-1 text-center text-[10px] font-black uppercase tracking-[0.16em] text-white/35 md:text-xs">{day}</p>)}
           {days.map((day) => {
             const active = day.date === selectedDate;
             const total = day.totalMeals + day.totalActivities;
@@ -1053,18 +1067,18 @@ function CalendarPanel({ calendarMonth, setCalendarMonth, days, selectedDate, se
         </div>
       </section>
       <aside className={`${card} h-fit p-5 md:p-6 2xl:sticky 2xl:top-24`}>
-        <p className="eyebrow">Selected day</p>
-        <h3 className="mt-2 text-4xl font-black tracking-[-0.08em] text-white capitalize">{formatDate(selectedDate)}</h3>
+        <p className="eyebrow">{tr(t, 'selectedDay', 'Selected day')}</p>
+        <h3 className="mt-2 text-4xl font-black tracking-[-0.08em] text-white capitalize">{formatDate(selectedDate, language)}</h3>
         <div className="mt-5 grid grid-cols-2 gap-3">
-          <DarkStat label="Måltider" value={activeDay ? `${activeDay.completedMeals}/${activeDay.totalMeals}` : '0/0'} />
-          <DarkStat label="Träning" value={activeDay ? `${activeDay.completedActivities}/${activeDay.totalActivities}` : '0/0'} />
+          <DarkStat label={tr(t, 'meals', 'Meals')} value={activeDay ? `${activeDay.completedMeals}/${activeDay.totalMeals}` : '0/0'} />
+          <DarkStat label={t.training} value={activeDay ? `${activeDay.completedActivities}/${activeDay.totalActivities}` : '0/0'} />
         </div>
         <div className="mt-7 rounded-[1.7rem] border border-white/10 bg-black/20 p-4">
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-200/75">Veckoplaner</p>
-          <p className="mt-2 text-sm font-semibold leading-6 text-white/50">Applicera en sparad vecka på veckan där valt datum ligger.</p>
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-200/75">{tr(t, 'weekPlans', 'Week plans')}</p>
+          <p className="mt-2 text-sm font-semibold leading-6 text-white/50">{tr(t, 'applyWeekHelp', 'Apply a saved week to selected week.')}</p>
           <div className="mt-4 space-y-3">
-            <Empty show={weekPlans.length === 0} text="Spara en vecka från Dagens plan så hamnar den här." />
-            {weekPlans.map((plan) => <MiniCard key={plan._id || plan.title} title={plan.title} meta={`${plan.days.length} dagar · mat + träning`} onUse={() => applyWeekPlan(plan)} onDelete={() => deleteWeekPlan(plan._id)} />)}
+            <Empty show={weekPlans.length === 0} text={tr(t, 'noWeekPlans', 'Save a week from Today plan and it will appear here.')} />
+            {weekPlans.map((plan) => <MiniCard key={plan._id || plan.title} title={plan.title} meta={`${plan.days.length} ${tr(t, 'day', 'days')} · mat + träning`} onUse={() => applyWeekPlan(plan)} onDelete={() => deleteWeekPlan(plan._id)} />)}
           </div>
         </div>
       </aside>
@@ -1080,22 +1094,22 @@ function CalendarPill({ label, active }: { label: string; active: boolean }) {
   return <span className={`block rounded-full px-2 py-1 text-[10px] font-black ${active ? 'bg-slate-950/10 text-slate-800' : 'bg-white/10 text-white/50'}`}>{label}</span>;
 }
 
-function BankPanel({ meals, activities, dayPlans, weekPlans, oldDayTemplates, addSavedMeal, updateSavedMeal, addSavedActivity, useDayPlan, applyWeekPlan, deleteMeal, deleteSavedActivity, deleteDayPlan, deleteWeekPlan, publishMeal, publishDay, publishWeek, t }: { meals: SavedMeal[]; activities: SavedActivity[]; dayPlans: SavedDayPlan[]; weekPlans: SavedWeekPlan[]; oldDayTemplates: SavedMealPlan[]; addSavedMeal: (meal: SavedMeal) => void; updateSavedMeal: (meal: SavedMeal, patch: Partial<SavedMeal>) => void; addSavedActivity: (activity: SavedActivity) => void; useDayPlan: (plan: SavedDayPlan) => void; applyWeekPlan: (plan: SavedWeekPlan) => void; deleteMeal: (id?: string) => void; deleteSavedActivity: (id?: string) => void; deleteDayPlan: (id?: string) => void; deleteWeekPlan: (id?: string) => void; publishMeal: (meal: SavedMeal) => void; publishDay: (plan: SavedDayPlan) => void; publishWeek: (plan: SavedWeekPlan) => void; t: (typeof uiText)[LanguageCode] }) {
+function BankPanel({ meals, activities, dayPlans, weekPlans, oldDayTemplates, addSavedMeal, updateSavedMeal, addSavedActivity, useDayPlan, applyWeekPlan, deleteMeal, deleteSavedActivity, deleteDayPlan, deleteWeekPlan, publishMeal, publishDay, publishWeek, t }: { meals: SavedMeal[]; activities: SavedActivity[]; dayPlans: SavedDayPlan[]; weekPlans: SavedWeekPlan[]; oldDayTemplates: SavedMealPlan[]; addSavedMeal: (meal: SavedMeal) => void; updateSavedMeal: (meal: SavedMeal, patch: Partial<SavedMeal>) => void; addSavedActivity: (activity: SavedActivity) => void; useDayPlan: (plan: SavedDayPlan) => void; applyWeekPlan: (plan: SavedWeekPlan) => void; deleteMeal: (id?: string) => void; deleteSavedActivity: (id?: string) => void; deleteDayPlan: (id?: string) => void; deleteWeekPlan: (id?: string) => void; publishMeal: (meal: SavedMeal) => void; publishDay: (plan: SavedDayPlan) => void; publishWeek: (plan: SavedWeekPlan) => void; t: Record<string, string> }) {
   return (
     <section className={`${card} p-5 md:p-6`}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow">Bank</p>
-          <h2 className="mt-2 text-5xl font-black tracking-[-0.08em] text-white">Sparat bibliotek</h2>
-          <p className="mt-2 text-sm font-semibold text-white/40">Återanvänd privat, dela i grupp eller publicera som inspiration.</p>
+          <p className="eyebrow">{t.bank}</p>
+          <h2 className="mt-2 text-5xl font-black tracking-[-0.08em] text-white">{tr(t, 'savedLibrary', 'Saved library')}</h2>
+          <p className="mt-2 text-sm font-semibold text-white/40">{tr(t, 'bankHelp', 'Reuse privately, share in a group, or publish.')}</p>
         </div>
-        <div className="rounded-full border border-white/10 bg-white/[0.07] px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-white/50">{meals.length + activities.length + dayPlans.length + weekPlans.length} mallar</div>
+        <div className="rounded-full border border-white/10 bg-white/[0.07] px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-white/50">{meals.length + activities.length + dayPlans.length + weekPlans.length} {tr(t, 'templates', 'templates')}</div>
       </div>
       <div className="mt-7 grid gap-5 xl:grid-cols-2 2xl:grid-cols-4">
-        <BankColumn title="Måltider" icon="🍳"><Empty show={meals.length === 0} text="Spara en måltid från ett måltidskort." />{meals.map((meal) => <SavedMealCard key={meal._id || meal.title} meal={meal} onUse={() => addSavedMeal(meal)} onUpdate={(patch) => updateSavedMeal(meal, patch)} onDelete={() => deleteMeal(meal._id)} onPublish={() => publishMeal(meal)} publishLabel={t.publish} />)}</BankColumn>
-        <BankColumn title="Aktiviteter" icon="⚡"><Empty show={activities.length === 0} text="Spara en aktivitet från träningskortet." />{activities.map((activity) => <MiniCard key={activity._id || activity.title} title={activity.title} meta={activity.time || 'Ingen tid'} onUse={() => addSavedActivity(activity)} onDelete={() => deleteSavedActivity(activity._id)} />)}</BankColumn>
-        <BankColumn title="Dagsplaner" icon="☑"><Empty show={dayPlans.length === 0 && oldDayTemplates.length === 0} text="Spara matdag, träningsdag eller full dagsplan." />{dayPlans.map((plan) => <MiniCard key={plan._id || plan.title} title={plan.title} meta={`${kindLabel[plan.kind]} · ${plan.meals.length} måltider · ${plan.activities.length} aktiviteter`} onUse={() => useDayPlan(plan)} onDelete={() => deleteDayPlan(plan._id)} onPublish={() => publishDay(plan)} publishLabel={t.publish} />)}{oldDayTemplates.map((template) => <MiniCard key={template._id || template.title} title={template.title} meta={`Gammal mall · ${template.meals.length} måltider`} onUse={() => useDayPlan({ owner: template.owner, title: template.title, kind: 'food', meals: template.meals, activities: [], createdBy: template.createdBy })} />)}</BankColumn>
-        <BankColumn title="Veckoplaner" icon="◷"><Empty show={weekPlans.length === 0} text="Spara hela veckan från Dagens plan." />{weekPlans.map((plan) => <MiniCard key={plan._id || plan.title} title={plan.title} meta={`${plan.days.length} dagar`} onUse={() => applyWeekPlan(plan)} onDelete={() => deleteWeekPlan(plan._id)} onPublish={() => publishWeek(plan)} publishLabel={t.publish} />)}</BankColumn>
+        <BankColumn title={tr(t, 'meals', 'Meals')} icon="🍳"><Empty show={meals.length === 0} text={tr(t, 'noSavedMeals', 'Save a meal from a meal card.')} />{meals.map((meal) => <SavedMealCard key={meal._id || meal.title} meal={meal} onUse={() => addSavedMeal(meal)} onUpdate={(patch) => updateSavedMeal(meal, patch)} onDelete={() => deleteMeal(meal._id)} onPublish={() => publishMeal(meal)} publishLabel={t.publish} />)}</BankColumn>
+        <BankColumn title={tr(t, 'activities', 'Activities')} icon="⚡"><Empty show={activities.length === 0} text={tr(t, 'noSavedActivities', 'Save an activity from the training card.')} />{activities.map((activity) => <MiniCard key={activity._id || activity.title} title={activity.title} meta={activity.time || 'Ingen tid'} onUse={() => addSavedActivity(activity)} onDelete={() => deleteSavedActivity(activity._id)} />)}</BankColumn>
+        <BankColumn title={tr(t, 'dayPlans', 'Day plans')} icon="☑"><Empty show={dayPlans.length === 0 && oldDayTemplates.length === 0} text={tr(t, 'noDayPlans', 'Save a day plan.')} />{dayPlans.map((plan) => <MiniCard key={plan._id || plan.title} title={plan.title} meta={`${kindText(plan.kind, t)} · ${plan.meals.length} ${tr(t, 'mealCount', 'meals')} · ${plan.activities.length} ${tr(t, 'activities', 'activities')}`} onUse={() => useDayPlan(plan)} onDelete={() => deleteDayPlan(plan._id)} onPublish={() => publishDay(plan)} publishLabel={t.publish} />)}{oldDayTemplates.map((template) => <MiniCard key={template._id || template.title} title={template.title} meta={`${tr(t, 'oldTemplate', 'Old template')} · ${template.meals.length} ${tr(t, 'mealCount', 'meals')}`} onUse={() => useDayPlan({ owner: template.owner, title: template.title, kind: 'food', meals: template.meals, activities: [], createdBy: template.createdBy })} />)}</BankColumn>
+        <BankColumn title={tr(t, 'weekPlans', 'Week plans')} icon="◷"><Empty show={weekPlans.length === 0} text={tr(t, 'noSavedWeekPlans', 'Save the full week from Today plan.')} />{weekPlans.map((plan) => <MiniCard key={plan._id || plan.title} title={plan.title} meta={`${plan.days.length} ${tr(t, 'day', 'days')}`} onUse={() => applyWeekPlan(plan)} onDelete={() => deleteWeekPlan(plan._id)} onPublish={() => publishWeek(plan)} publishLabel={t.publish} />)}</BankColumn>
       </div>
     </section>
   );
@@ -1178,27 +1192,27 @@ function MiniCard({ title, meta, onUse, onDelete, onPublish, publishLabel = 'Pub
   );
 }
 
-function SharedPlansPanel({ plans, currentUser, selectedDate, copyPlan, deletePlan, t }: { plans: PublicSharedPlan[]; currentUser: LoginUser; selectedDate: string; copyPlan: (plan: PublicSharedPlan) => void; deletePlan: (id?: string) => void; t: (typeof uiText)[LanguageCode] }) {
+function SharedPlansPanel({ plans, currentUser, selectedDate, copyPlan, deletePlan, t, language }: { plans: PublicSharedPlan[]; language: LanguageCode; currentUser: LoginUser; selectedDate: string; copyPlan: (plan: PublicSharedPlan) => void; deletePlan: (id?: string) => void; t: Record<string, string> }) {
   const [filter, setFilter] = useState<'all' | PublicSharedPlan['type']>('all');
   const visiblePlans = filter === 'all' ? plans : plans.filter((plan) => plan.type === filter);
   const filters: { id: 'all' | PublicSharedPlan['type']; label: string }[] = [
-    { id: 'all', label: 'All' },
-    { id: 'meal', label: 'Meals' },
-    { id: 'day', label: 'Day plans' },
-    { id: 'week', label: 'Week plans' },
-    { id: 'training', label: 'Training' },
+    { id: 'all', label: tr(t, 'all', 'All') },
+    { id: 'meal', label: tr(t, 'sharedMeals', 'Meals') },
+    { id: 'day', label: tr(t, 'dayPlansFilter', 'Day plans') },
+    { id: 'week', label: tr(t, 'weekPlansFilter', 'Week plans') },
+    { id: 'training', label: tr(t, 'trainingFilter', 'Training') },
   ];
 
   return (
     <section className={`${card} p-5 md:p-6`}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow">Community</p>
+          <p className="eyebrow">{tr(t, 'community', 'Community')}</p>
           <h2 className="mt-2 text-4xl font-black tracking-[-0.08em] text-white md:text-6xl">{t.shared}</h2>
           <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/45">{t.sharedSubtitle}</p>
-          <p className="mt-2 text-xs font-bold text-emerald-100/60">Kopieras till: {formatDate(selectedDate)} · {currentUser.name}</p>
+          <p className="mt-2 text-xs font-bold text-emerald-100/60">{tr(t, 'copyTo', 'Copied to')}: {formatDate(selectedDate, language)} · {currentUser.name}</p>
         </div>
-        <div className="rounded-full border border-white/10 bg-white/[0.07] px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-white/50">{plans.length} public</div>
+        <div className="rounded-full border border-white/10 bg-white/[0.07] px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-white/50">{plans.length} {tr(t, 'public', 'public')}</div>
       </div>
 
       <div className="mt-6 flex gap-2 overflow-x-auto pb-1">
@@ -1208,14 +1222,14 @@ function SharedPlansPanel({ plans, currentUser, selectedDate, copyPlan, deletePl
       </div>
 
       <div className="mt-7 grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
-        <Empty show={visiblePlans.length === 0} text="Inga publicerade planer än. Publicera från din Bank så dyker de upp här." />
+        <Empty show={visiblePlans.length === 0} text={tr(t, 'noPublishedPlans', 'No published plans yet.')} />
         {visiblePlans.map((plan) => <SharedPlanCard key={plan._id || plan.title} plan={plan} currentUser={currentUser} copyPlan={copyPlan} deletePlan={deletePlan} t={t} />)}
       </div>
     </section>
   );
 }
 
-function SharedPlanCard({ plan, currentUser, copyPlan, deletePlan, t }: { plan: PublicSharedPlan; currentUser: LoginUser; copyPlan: (plan: PublicSharedPlan) => void; deletePlan: (id?: string) => void; t: (typeof uiText)[LanguageCode] }) {
+function SharedPlanCard({ plan, currentUser, copyPlan, deletePlan, t }: { plan: PublicSharedPlan; currentUser: LoginUser; copyPlan: (plan: PublicSharedPlan) => void; deletePlan: (id?: string) => void; t: Record<string, string> }) {
   const canDelete = currentUser.role === 'admin' || plan.publishedBy === currentUser.key;
   const mealCount = plan.type === 'meal' ? (plan.meals?.[0]?.items.length || 0) : plan.dayPlan ? plan.dayPlan.meals.length : plan.weekPlan ? plan.weekPlan.days.reduce((sum, day) => sum + day.meals.length, 0) : 0;
   const activityCount = plan.dayPlan ? plan.dayPlan.activities.length : plan.weekPlan ? plan.weekPlan.days.reduce((sum, day) => sum + day.activities.length, 0) : 0;
@@ -1252,18 +1266,18 @@ function SharedPlanCard({ plan, currentUser, copyPlan, deletePlan, t }: { plan: 
 }
 
 
-function ProgressPanel({ plan, activities, currentUser }: { plan: MealPlan; activities: Activity[]; currentUser: UserKey }) {
+function ProgressPanel({ plan, activities, currentUser, t }: { plan: MealPlan; t: Record<string, string>; activities: Activity[]; currentUser: UserKey }) {
   const foodProgress = progress(completedMeals(plan, currentUser), mealTotal(plan));
   const trainingProgress = progress(completedActivities(activities, currentUser), activityTotal(activities));
   return (
     <section className="overflow-hidden rounded-[2rem] border border-emerald-300/20 bg-gradient-to-br from-emerald-300/20 via-white/[0.08] to-sky-300/10 p-5 text-white shadow-[0_24px_90px_rgba(0,0,0,0.30)] backdrop-blur-2xl">
-      <p className="eyebrow">Status</p>
-      <h3 className="mt-3 text-4xl font-black tracking-[-0.08em]">Dagens check</h3>
+      <p className="eyebrow">{tr(t, 'status', 'Status')}</p>
+      <h3 className="mt-3 text-4xl font-black tracking-[-0.08em]">{tr(t, 'todayCheck', 'Today check')}</h3>
       <div className="mt-5 grid grid-cols-2 gap-3">
-        <DarkStat label="Mat" value={`${foodProgress}%`} />
-        <DarkStat label="Måltider" value={`${completedMeals(plan, currentUser)}/${mealTotal(plan)}`} />
-        <DarkStat label="Träning" value={`${trainingProgress}%`} />
-        <DarkStat label="Plan" value={lengthLabel[plan.length]} />
+        <DarkStat label={tr(t, 'food', 'Food')} value={`${foodProgress}%`} />
+        <DarkStat label={tr(t, 'meals', 'Meals')} value={`${completedMeals(plan, currentUser)}/${mealTotal(plan)}`} />
+        <DarkStat label={t.training} value={`${trainingProgress}%`} />
+        <DarkStat label={tr(t, 'plan', 'Plan')} value={lengthText(plan.length, t)} />
       </div>
     </section>
   );
