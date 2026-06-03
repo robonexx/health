@@ -1,11 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
-import { createSession, hashPassword, makeEmailToken, publicUser, roleForEmail } from '@/lib/auth';
-import { sendVerificationEmail } from '@/lib/email';
-
-function appUrl(request: Request) {
-  return process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
-}
+import { createSession, hashPassword, publicUser, roleForEmail } from '@/lib/auth';
+import { sendWelcomeEmail } from '@/lib/email';
 
 export async function POST(request: Request) {
   try {
@@ -28,19 +24,17 @@ export async function POST(request: Request) {
       name,
       email,
       passwordHash: hashPassword(password),
-      emailVerified: false,
+      emailVerified: true,
       role,
       createdAt: now,
       updatedAt: now,
     });
 
-    const user = { id: String(result.insertedId), name, email, key: `user:${String(result.insertedId)}`, emailVerified: false, role };
-    const token = makeEmailToken(user.id, email);
-    const confirmationUrl = `${appUrl(request)}/verify-email?token=${encodeURIComponent(token)}`;
-    await sendVerificationEmail({ to: email, name, url: confirmationUrl });
+    const user = { id: String(result.insertedId), name, email, key: `user:${String(result.insertedId)}`, emailVerified: true, role };
+    await sendWelcomeEmail({ to: email, name });
     await createSession(user);
 
-    return NextResponse.json({ user: publicUser(user), confirmationUrl: process.env.NODE_ENV === 'development' ? confirmationUrl : undefined }, { status: 201 });
+    return NextResponse.json({ user: publicUser(user), message: 'Account created' }, { status: 201 });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ message: 'Could not sign up' }, { status: 500 });

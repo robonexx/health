@@ -4,7 +4,7 @@ export type PlanLength = 'day' | 'week' | 'ongoing';
 export type DayPlanKind = 'food' | 'training' | 'full';
 
 export type UserRole = 'user' | 'admin';
-export type LanguageCode = 'sv' | 'en' | 'fi' | 'es' | 'pt' | 'ja' | 'zh';
+export type LanguageCode = 'sv' | 'en' | 'fi' | 'es' | 'pt' | 'fr' | 'ja' | 'zh';
 export type SharedPlanType = 'meal' | 'day' | 'week' | 'month' | 'training';
 export type SharedVisibility = 'private' | 'group' | 'public';
 

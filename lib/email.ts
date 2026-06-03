@@ -17,23 +17,22 @@ function escapeHtml(value: string) {
     .replaceAll("'", '&#039;');
 }
 
-export async function sendVerificationEmail({ to, name, url }: { to: string; name: string; url: string }) {
-  const subject = 'Welcome to Your Health — confirm your email';
+export async function sendWelcomeEmail({ to, name }: { to: string; name: string }) {
+  const subject = 'Welcome to Your Health';
   const safeName = escapeHtml(name || 'there');
-  const safeUrl = escapeHtml(url);
-  const text = `Hi ${name},
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+  const safeAppUrl = escapeHtml(appUrl);
+  const text = `Hi ${name || 'there'},
 
 Welcome to Your Health.
 
-You can use this app to create meal plans, save meals, track training, build day and week plans, and share health tips with others. You can also keep plans private or share them with family and friends in a group.
+Your account is ready. You can use the app to create meal plans, save meals, track training, build day and week plans, and share health tips with others.
 
-Confirm your email here:
-${url}
+You can keep your plans private, share plans with a small group of family or friends, or publish meal and training plans as inspiration for others.
 
 Take care,
 Your Health`;
 
-  // Uses EMAIL_HOST / EMAIL_PORT / EMAIL_USER / EMAIL_PASS / EMAIL_FROM
   const config = emailConfig();
 
   if (config.host && config.user && config.pass) {
@@ -49,9 +48,9 @@ Your Health`;
       to,
       subject,
       text,
-      html: `<div style="font-family:Inter,Arial,sans-serif;line-height:1.6;color:#0f172a;background:#f8fafc;padding:28px"><div style="max-width:620px;margin:auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:28px"><p style="margin:0 0 10px;color:#64748b;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:12px">Your Health</p><h1 style="margin:0 0 14px;font-size:30px;color:#020617">Welcome to Your Health</h1><p>Hi ${safeName},</p><p>You can use this app to create meal plans, save meals, track training, build day and week plans, and share health tips with others.</p><p>You can keep your plans private, or share meal and training plans with family and friends in small groups.</p><p><a href="${safeUrl}" style="display:inline-block;background:#34d399;color:#020617;padding:12px 18px;border-radius:14px;font-weight:800;text-decoration:none">Confirm email</a></p><p style="color:#64748b;font-size:14px">Or open this link:<br>${safeUrl}</p></div></div>`,
+      html: `<div style="font-family:Inter,Arial,sans-serif;line-height:1.6;color:#0f172a;background:#f8fafc;padding:28px"><div style="max-width:620px;margin:auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:28px"><p style="margin:0 0 10px;color:#64748b;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:12px">Your Health</p><h1 style="margin:0 0 14px;font-size:30px;color:#020617">Welcome to Your Health</h1><p>Hi ${safeName},</p><p>Your account is ready. No email confirmation is needed.</p><p>You can create meal plans, save meals, track training, build day and week plans, and share health tips with others.</p><p>You can keep plans private, share with a small group of family or friends, or publish meal and training plans as inspiration for the community.</p>${safeAppUrl ? `<p><a href="${safeAppUrl}" style="display:inline-block;background:#34d399;color:#020617;padding:12px 18px;border-radius:14px;font-weight:800;text-decoration:none">Open Your Health</a></p>` : ''}<p style="color:#64748b;font-size:14px">Take care,<br>Your Health</p></div></div>`,
     });
   } else {
-    console.log('[HealthApp] Verification email fallback:', { to, subject, url, text });
+    console.log('[HealthApp] Welcome email fallback:', { to, subject, text });
   }
 }

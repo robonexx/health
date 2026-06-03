@@ -13,9 +13,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Wrong email or password' }, { status: 401 });
     }
     const user = { id: String(userDoc._id), name: String(userDoc.name), email: String(userDoc.email), key: `user:${String(userDoc._id)}`, emailVerified: Boolean(userDoc.emailVerified), role: userDoc.role === 'admin' ? 'admin' : 'user' };
-    if (!user.emailVerified && process.env.REQUIRE_EMAIL_VERIFICATION === 'true') {
-      return NextResponse.json({ message: 'Please confirm your email before logging in' }, { status: 403 });
-    }
     await createSession(user);
     return NextResponse.json({ user: publicUser(user) });
   } catch (error) {
