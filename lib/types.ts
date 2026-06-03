@@ -27,12 +27,22 @@ export type HealthGroupMember = {
   joinedAt: string;
 };
 
+export type HealthGroupInvite = {
+  email: string;
+  invitedBy: string;
+  invitedByName?: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: string;
+  respondedAt?: string;
+};
+
 export type HealthGroup = {
   _id?: string;
   name: string;
   description?: string;
   ownerId: string;
   members: HealthGroupMember[];
+  invites?: HealthGroupInvite[];
   createdAt?: string;
   updatedAt?: string;
 };

@@ -5,10 +5,23 @@ import { getFreshSessionUser } from '@/lib/auth';
 export async function GET() {
   try {
     const user = await getFreshSessionUser();
-    if (!user) return NextResponse.json({ groups: [] }, { status: 401 });
+    if (!user) return NextResponse.json({ groups: [], invites: [] }, { status: 401 });
     const db = await getDb();
-    const groups = await db.collection('groups').find({ 'members.userId': user.id }).sort({ updatedAt: -1 }).toArray();
-    return NextResponse.json({ groups });
+    const email = user.email.toLowerCase();
+    const [groups, invitedGroups] = await Promise.all([
+      db.collection('groups').find({ 'members.userId': user.id }).sort({ updatedAt: -1 }).toArray(),
+      db.collection('groups').find({
+        'members.userId': { $ne: user.id },
+        invites: { $elemMatch: { email, status: 'pending' } },
+      }).sort({ updatedAt: -1 }).toArray(),
+    ]);
+
+    const invites = invitedGroups.map((group) => {
+      const invite = (group.invites || []).find((item: any) => item.email === email && item.status === 'pending');
+      return { group, invite };
+    }).filter((item) => item.invite);
+
+    return NextResponse.json({ groups, invites });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ message: 'Could not load groups' }, { status: 500 });
@@ -28,7 +41,8 @@ export async function POST(request: Request) {
       name,
       description,
       ownerId: user.id,
-      members: [{ userId: user.id, name: user.name, email: user.email, role: 'owner', joinedAt: now }],
+      members: [{ userId: user.id, name: user.name, email: user.email.toLowerCase(), role: 'owner', joinedAt: now }],
+      invites: [],
       createdAt: now,
       updatedAt: now,
     };

@@ -18,6 +18,7 @@ import type {
   WeekDayTemplate,
   AppUser,
   HealthGroup,
+  HealthGroupInvite,
   PublicSharedPlan,
   LanguageCode,
 } from '@/lib/types';
@@ -25,6 +26,7 @@ import type {
 type LoginUser = AppUser & { id: string };
 type Toast = { id: number; text: string; type?: 'good' | 'bad' } | null;
 type Tab = 'today' | 'calendar' | 'bank' | 'shared' | 'training';
+type PendingGroupInvite = { group: HealthGroup; invite: HealthGroupInvite };
 type CalendarDay = { date: string; inMonth: boolean; day: number; hasMeals: boolean; hasActivities: boolean; completedMeals: number; totalMeals: number; completedActivities: number; totalActivities: number };
 
 function getOwnerLabel(owner: PlanOwner, currentUser?: LoginUser | null, groups: HealthGroup[] = []) {
@@ -128,6 +130,7 @@ export default function HealthApp() {
   const [authDraft, setAuthDraft] = useState({ name: '', email: '', password: '' });
   const [loginError, setLoginError] = useState('');
   const [groups, setGroups] = useState<HealthGroup[]>([]);
+  const [groupInvites, setGroupInvites] = useState<PendingGroupInvite[]>([]);
   const [activeOwner, setActiveOwner] = useState<PlanOwner>('');
   const [groupDraft, setGroupDraft] = useState({ name: '', description: '', inviteEmail: '' });
   const [selectedDate, setSelectedDate] = useState(today());
@@ -228,7 +231,7 @@ export default function HealthApp() {
     setActiveOwner(data.user.key);
     if (authMode === 'signup') showToast('Konto skapat. Välkommen in!', 'good');
   }
-  async function logout() { await fetch('/api/auth/logout', { method: 'POST' }); setCurrentUser(null); setActiveOwner(''); setGroups([]); setAuthDraft({ name: '', email: '', password: '' }); }
+  async function logout() { await fetch('/api/auth/logout', { method: 'POST' }); setCurrentUser(null); setActiveOwner(''); setGroups([]); setGroupInvites([]); setAuthDraft({ name: '', email: '', password: '' }); }
 
   async function deleteAccount() {
     const firstConfirm = window.confirm('Vill du radera ditt konto? Dina privata måltider, planer och aktiviteter tas bort. Delade/publicerade planer finns kvar anonymt så andra kan fortsätta använda dem.');
@@ -245,15 +248,17 @@ export default function HealthApp() {
     setCurrentUser(null);
     setActiveOwner('');
     setGroups([]);
+    setGroupInvites([]);
     setAuthDraft({ name: '', email: '', password: '' });
     showToast('Kontot är raderat.', 'good');
   }
 
   async function refreshGroups() {
     const response = await fetch('/api/groups');
-    if (!response.ok) return setGroups([]);
+    if (!response.ok) { setGroups([]); setGroupInvites([]); return; }
     const data = await response.json();
     setGroups(data.groups || []);
+    setGroupInvites(data.invites || []);
   }
   async function createGroup() {
     if (!groupDraft.name.trim()) return showToast('Skriv ett namn på gruppen först.', 'bad');
@@ -273,7 +278,44 @@ export default function HealthApp() {
     if (!response.ok) return showToast(data.message || 'Kunde inte bjuda in.', 'bad');
     setGroupDraft((draft) => ({ ...draft, inviteEmail: '' }));
     await refreshGroups();
-    showToast('Vännen är tillagd i gruppen.');
+    showToast('Inbjudan är skickad. Vännen kan acceptera eller avböja.');
+  }
+
+  async function respondToGroupInvite(groupId: string, action: 'acceptInvite' | 'declineInvite') {
+    const response = await fetch(`/api/groups/${groupId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) return showToast(data.message || 'Kunde inte svara på inbjudan.', 'bad');
+    await refreshGroups();
+    if (action === 'acceptInvite') {
+      setActiveOwner(`group:${groupId}`);
+      showToast('Du är nu med i gruppen.');
+    } else {
+      showToast('Inbjudan är avböjd.');
+    }
+  }
+
+  async function leaveGroup(groupId: string) {
+    const group = groups.find((item) => item._id === groupId);
+    if (!group) return;
+    if (!window.confirm(`Vill du lämna gruppen ${group.name}?`)) return;
+    const response = await fetch(`/api/groups/${groupId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'leave' }) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) return showToast(data.message || 'Kunde inte lämna gruppen.', 'bad');
+    await refreshGroups();
+    if (owner === `group:${groupId}`) setActiveOwner(currentUser?.key || '');
+    showToast('Du har lämnat gruppen.');
+  }
+
+  async function removeGroupMember(groupId: string, userId: string) {
+    const group = groups.find((item) => item._id === groupId);
+    const member = group?.members?.find((item) => item.userId === userId);
+    if (!group || !member) return;
+    if (!window.confirm(`Ta bort ${member.name || member.email} från gruppen?`)) return;
+    const response = await fetch(`/api/groups/${groupId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'removeMember', userId }) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) return showToast(data.message || 'Kunde inte ta bort medlemmen.', 'bad');
+    await refreshGroups();
+    showToast('Medlemmen är borttagen.');
   }
 
   function patchPlan(updater: (mealPlan: MealPlan) => MealPlan) {
@@ -478,7 +520,7 @@ export default function HealthApp() {
     <main className="min-h-screen overflow-hidden text-white">
       <Background />
       <div className="relative z-10 mx-auto grid max-w-[1760px] gap-5 p-3 md:p-5 xl:grid-cols-[300px_minmax(0,1fr)]">
-        <Sidebar owner={owner} currentUser={currentUser} groups={groups} activeOwner={owner} setActiveOwner={setActiveOwner} groupDraft={groupDraft} setGroupDraft={setGroupDraft} createGroup={createGroup} inviteToActiveGroup={inviteToActiveGroup} logout={logout} deleteAccount={deleteAccount} language={language} setLanguage={setLanguage} />
+        <Sidebar owner={owner} currentUser={currentUser} groups={groups} groupInvites={groupInvites} activeOwner={owner} setActiveOwner={setActiveOwner} groupDraft={groupDraft} setGroupDraft={setGroupDraft} createGroup={createGroup} inviteToActiveGroup={inviteToActiveGroup} respondToGroupInvite={respondToGroupInvite} leaveGroup={leaveGroup} removeGroupMember={removeGroupMember} logout={logout} deleteAccount={deleteAccount} language={language} setLanguage={setLanguage} />
         <section className="min-w-0 space-y-5">
           <Hero owner={owner} groups={groups} currentUser={currentUser} selectedDate={selectedDate} setSelectedDate={(date) => { setSelectedDate(date); setCalendarMonth(monthStart(date)); }} plan={plan} activities={ownerActivities} language={language} t={t} />
           <TabBar tab={tab} setTab={setTab} t={t} />
@@ -643,8 +685,11 @@ function LanguagePicker({ language, setLanguage, compact = false }: { language: 
 }
 
 
-function Sidebar({ owner, currentUser, groups, activeOwner, setActiveOwner, groupDraft, setGroupDraft, createGroup, inviteToActiveGroup, logout, deleteAccount, language, setLanguage }: { owner: PlanOwner; currentUser: LoginUser; groups: HealthGroup[]; activeOwner: PlanOwner; setActiveOwner: (owner: PlanOwner) => void; groupDraft: { name: string; description: string; inviteEmail: string }; setGroupDraft: (draft: { name: string; description: string; inviteEmail: string }) => void; createGroup: () => void; inviteToActiveGroup: () => void; logout: () => void; deleteAccount: () => void; language: LanguageCode; setLanguage: (language: LanguageCode) => void }) {
+function Sidebar({ owner, currentUser, groups, groupInvites, activeOwner, setActiveOwner, groupDraft, setGroupDraft, createGroup, inviteToActiveGroup, respondToGroupInvite, leaveGroup, removeGroupMember, logout, deleteAccount, language, setLanguage }: { owner: PlanOwner; currentUser: LoginUser; groups: HealthGroup[]; groupInvites: PendingGroupInvite[]; activeOwner: PlanOwner; setActiveOwner: (owner: PlanOwner) => void; groupDraft: { name: string; description: string; inviteEmail: string }; setGroupDraft: (draft: { name: string; description: string; inviteEmail: string }) => void; createGroup: () => void; inviteToActiveGroup: () => void; respondToGroupInvite: (groupId: string, action: 'acceptInvite' | 'declineInvite') => void; leaveGroup: (groupId: string) => void; removeGroupMember: (groupId: string, userId: string) => void; logout: () => void; deleteAccount: () => void; language: LanguageCode; setLanguage: (language: LanguageCode) => void }) {
   const selectedGroup = groups.find((group) => `group:${group._id}` === activeOwner);
+  const selectedGroupId = selectedGroup?._id || '';
+  const isSelectedGroupOwner = Boolean(selectedGroup && selectedGroup.ownerId === currentUser.id);
+  const pendingSelectedInvites = (selectedGroup?.invites || []).filter((invite) => invite.status === 'pending');
   const t = uiText[language];
   return (
     <aside className="xl:sticky xl:top-5">
@@ -670,14 +715,53 @@ function Sidebar({ owner, currentUser, groups, activeOwner, setActiveOwner, grou
           ))}
           <NavLink href="/tips" icon="✦" label={t.healthTips} active={false} />
         </nav>
+
+        {groupInvites.length > 0 && <div className="mt-3 rounded-[1.65rem] border border-emerald-300/20 bg-emerald-300/10 p-3">
+          <p className="px-2 text-xs font-black uppercase tracking-[0.22em] text-emerald-100">{tr(t, 'groupInvites', 'Group invitations')}</p>
+          <div className="mt-3 space-y-2">
+            {groupInvites.map(({ group, invite }) => (
+              <div key={`${group._id}-${invite.email}`} className="rounded-2xl bg-black/25 p-3 ring-1 ring-white/10">
+                <p className="text-sm font-black text-white">{group.name}</p>
+                <p className="mt-1 text-xs font-bold text-white/45">{tr(t, 'invitedBy', 'Invited by')} {invite.invitedByName || 'friend'}</p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button onClick={() => group._id && respondToGroupInvite(group._id, 'acceptInvite')} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-emerald-200">{tr(t, 'accept', 'Accept')}</button>
+                  <button onClick={() => group._id && respondToGroupInvite(group._id, 'declineInvite')} className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-black text-white/60 transition hover:bg-white/[0.1] hover:text-white">{tr(t, 'decline', 'Decline')}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>}
         <div className="mt-3 rounded-[1.65rem] border border-white/10 bg-white/[0.06] p-3">
           <p className="px-2 text-xs font-black uppercase tracking-[0.22em] text-white/35">{t.shareWithFriends}</p>
           <input className={`${darkInput} mt-3 py-2`} value={groupDraft.name} onChange={(event) => setGroupDraft({ ...groupDraft, name: event.target.value })} placeholder={tr(t, 'newGroupPlaceholder', 'New group')} />
           <button onClick={createGroup} className={`${softDarkButton} mt-2 w-full py-2`}>{t.createGroup}</button>
           {selectedGroup && <div className="mt-3 rounded-2xl bg-black/20 p-3">
-            <p className="text-xs font-black text-white/45">{selectedGroup.members?.length || 0}/10 {tr(t, 'members', 'members')}</p>
-            <input className={`${darkInput} mt-2 py-2`} value={groupDraft.inviteEmail} onChange={(event) => setGroupDraft({ ...groupDraft, inviteEmail: event.target.value })} placeholder={tr(t, 'friendEmailPlaceholder', 'friend@email.com')} />
-            <button onClick={inviteToActiveGroup} className={`${greenButton} mt-2 w-full py-2`}>{t.invite}</button>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-black text-white/45">{selectedGroup.members?.length || 0}/10 {tr(t, 'members', 'members')}</p>
+              {selectedGroupId && <button onClick={() => leaveGroup(selectedGroupId)} className="rounded-xl border border-rose-300/20 bg-rose-400/10 px-2.5 py-1.5 text-[0.68rem] font-black text-rose-100 transition hover:bg-rose-400/20">{tr(t, 'leaveGroup', 'Leave')}</button>}
+            </div>
+            {isSelectedGroupOwner && <>
+              <input className={`${darkInput} mt-2 py-2`} value={groupDraft.inviteEmail} onChange={(event) => setGroupDraft({ ...groupDraft, inviteEmail: event.target.value })} placeholder={tr(t, 'friendEmailPlaceholder', 'friend@email.com')} />
+              <button onClick={inviteToActiveGroup} className={`${greenButton} mt-2 w-full py-2`}>{t.invite}</button>
+            </>}
+            <div className="mt-3 space-y-2">
+              {(selectedGroup.members || []).map((member) => {
+                const canRemove = isSelectedGroupOwner && member.userId !== currentUser.id && member.role !== 'owner';
+                return <div key={member.userId} className="flex items-center justify-between gap-2 rounded-xl bg-white/[0.05] px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-black text-white/75">{member.name || member.email}</p>
+                    <p className="truncate text-[0.65rem] font-bold text-white/35">{member.role === 'owner' ? tr(t, 'owner', 'Owner') : tr(t, 'member', 'Member')}</p>
+                  </div>
+                  {canRemove && selectedGroupId && <button onClick={() => removeGroupMember(selectedGroupId, member.userId)} className="rounded-lg border border-white/10 bg-white/[0.06] px-2 py-1 text-[0.65rem] font-black text-white/50 hover:text-white">{tr(t, 'remove', 'Remove')}</button>}
+                </div>;
+              })}
+            </div>
+            {isSelectedGroupOwner && pendingSelectedInvites.length > 0 && <div className="mt-3 rounded-xl bg-black/20 p-2">
+              <p className="px-1 text-[0.65rem] font-black uppercase tracking-[0.16em] text-white/35">{tr(t, 'pendingInvites', 'Pending invites')}</p>
+              <div className="mt-2 space-y-1">
+                {pendingSelectedInvites.map((invite) => <p key={invite.email} className="truncate rounded-lg bg-white/[0.04] px-2 py-1.5 text-[0.68rem] font-bold text-white/45">{invite.email}</p>)}
+              </div>
+            </div>}
           </div>}
         </div>
 

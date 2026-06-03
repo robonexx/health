@@ -331,3 +331,30 @@ When those emails sign up, their user document gets:
 ```
 
 Existing users can be upgraded in MongoDB by setting `role` to `admin` in the `users` collection.
+
+
+## v0.6.5
+
+- Fixed Vercel TypeScript build issue where Mongo user roles were inferred as plain string instead of `UserRole`.
+- Added a broader i18n pass for dashboard titles, private plan heading, calendar month/day labels, sidebar account/workspace labels, bank headings and several planner labels.
+- Calendar and week strip now use the selected language locale for weekday/month names.
+
+
+## v0.6.5 permission hardening
+
+- Backend permissions now protect private user plans, saved meals, saved activities, day plans, week plans, activities and meal plans.
+- Group workspace content can only be changed by members of that group.
+- Health tips can only be edited/deleted by the creator or an admin.
+- Public shared plans can only be removed by the publisher or an admin.
+- Public plan publishing now checks that the user has access to the source owner/workspace before publishing.
+
+
+## v0.6.6 - Group invitations and member controls
+
+- Group invites are now pending instead of adding members directly.
+- Invited users can accept or decline from the sidebar.
+- Users can leave a group. If the owner leaves and others remain, ownership moves to the next member. If the last member leaves, the group is deleted.
+- Group owners can remove members from their own group.
+- Group owners can invite by email. The invited user will see the invite when logged in with that email.
+- Group max size remains 10 members.
+- Backend permissions are enforced in the API, not only hidden in the UI.
