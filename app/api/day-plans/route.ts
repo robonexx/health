@@ -2,11 +2,9 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
 import type { DayPlanKind, PlanOwner, SavedDayPlan, UserKey } from '@/lib/types';
 
-const owners: PlanOwner[] = ['shared', 'robert', 'erika'];
-const users: UserKey[] = ['robert', 'erika'];
 const kinds: DayPlanKind[] = ['food', 'training', 'full'];
-function isOwner(value: unknown): value is PlanOwner { return typeof value === 'string' && owners.includes(value as PlanOwner); }
-function isUser(value: unknown): value is UserKey { return typeof value === 'string' && users.includes(value as UserKey); }
+function isOwner(value: unknown): value is PlanOwner { return typeof value === 'string' && value.trim().length > 0; }
+function isUser(value: unknown): value is UserKey { return typeof value === 'string' && value.trim().length > 0; }
 function isKind(value: unknown): value is DayPlanKind { return typeof value === 'string' && kinds.includes(value as DayPlanKind); }
 
 export async function GET(request: Request) {

@@ -2,15 +2,13 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
 import type { Activity, PlanOwner, UserKey } from '@/lib/types';
 
-const owners: PlanOwner[] = ['shared', 'robert', 'erika'];
-const users: UserKey[] = ['robert', 'erika'];
 
 function isOwner(value: unknown): value is PlanOwner {
-  return typeof value === 'string' && owners.includes(value as PlanOwner);
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 function isUser(value: unknown): value is UserKey {
-  return typeof value === 'string' && users.includes(value as UserKey);
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 export async function GET(request: Request) {

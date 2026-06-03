@@ -12,15 +12,20 @@
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "bcryptjs": "^3.0.3",
+    "jsonwebtoken": "^9.0.3",
     "mongodb": "latest",
     "next": "latest",
+    "nodemailer": "^8.0.10",
     "react": "latest",
     "react-dom": "latest",
     "typescript": "latest"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.8",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/nodemailer": "^8.0.0",
     "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.8",
-    "@tailwindcss/postcss": "^4.1.8"
+    "tailwindcss": "^4.1.8"
   }
 }

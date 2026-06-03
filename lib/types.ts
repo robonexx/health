@@ -1,7 +1,35 @@
-export type UserKey = 'robert' | 'erika';
-export type PlanOwner = UserKey | 'shared';
+export type UserKey = string;
+export type PlanOwner = string;
 export type PlanLength = 'day' | 'week' | 'ongoing';
 export type DayPlanKind = 'food' | 'training' | 'full';
+
+export type AppUser = {
+  _id?: string;
+  name: string;
+  email: string;
+  key: UserKey;
+  emailVerified?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type HealthGroupMember = {
+  userId: string;
+  name: string;
+  email: string;
+  role: 'owner' | 'member';
+  joinedAt: string;
+};
+
+export type HealthGroup = {
+  _id?: string;
+  name: string;
+  description?: string;
+  ownerId: string;
+  members: HealthGroupMember[];
+  createdAt?: string;
+  updatedAt?: string;
+};
 
 export type Meal = {
   id: string;
@@ -83,7 +111,7 @@ export type SavedDayPlan = {
 };
 
 export type WeekDayTemplate = {
-  weekday: number; // 1 = Monday, 7 = Sunday
+  weekday: number;
   label: string;
   meals: Meal[];
   activities: SavedActivity[];

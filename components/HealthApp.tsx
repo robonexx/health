@@ -16,20 +16,25 @@ import type {
   SavedWeekPlan,
   UserKey,
   WeekDayTemplate,
+  AppUser,
+  HealthGroup,
 } from '@/lib/types';
 
-type LoginUser = { name: string; key: UserKey };
+type LoginUser = AppUser & { id: string };
 type Toast = { id: number; text: string; type?: 'good' | 'bad' } | null;
 type Tab = 'today' | 'calendar' | 'bank' | 'training';
 type CalendarDay = { date: string; inMonth: boolean; day: number; hasMeals: boolean; hasActivities: boolean; completedMeals: number; totalMeals: number; completedActivities: number; totalActivities: number };
 
-const USERS = [
-  { name: 'Robert', key: 'robert', password: 'robert26' },
-  { name: 'Robert', key: 'robert', password: 'robert 26' },
-  { name: 'Erika', key: 'erika', password: 'erika26' },
-] as const;
-
-const ownerLabel: Record<PlanOwner, string> = { shared: 'Gemensam', robert: 'Robert', erika: 'Erika' };
+function getOwnerLabel(owner: PlanOwner, currentUser?: LoginUser | null, groups: HealthGroup[] = []) {
+  if (owner === 'shared') return 'Gemensam';
+  if (currentUser && owner === currentUser.key) return 'Min privata';
+  if (owner.startsWith('group:')) {
+    const id = owner.replace('group:', '');
+    return groups.find((group) => group._id === id)?.name || 'Grupp';
+  }
+  if (owner.startsWith('user:')) return 'Privat plan';
+  return owner;
+}
 const lengthLabel: Record<PlanLength, string> = { day: 'Dag', week: 'Vecka', ongoing: 'Pågående' };
 const kindLabel: Record<DayPlanKind, string> = { food: 'Mat', training: 'Träning', full: 'Mat + träning' };
 const weekdays = ['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön'];
@@ -65,8 +70,8 @@ function prevMonth(value: string) { const date = toDate(value); date.setMonth(da
 function nextMonth(value: string) { const date = toDate(value); date.setMonth(date.getMonth() + 1, 1); return iso(date); }
 function mondayOf(value: string) { const date = toDate(value); const day = date.getDay() || 7; date.setDate(date.getDate() - day + 1); return iso(date); }
 function cleanMeal(meal: Meal): Meal { return { ...meal, id: meal.id || uid(), title: meal.title?.trim() || 'Ny måltid', time: meal.time?.trim() || '', items: Array.isArray(meal.items) ? meal.items.map((i) => i.trim()).filter(Boolean) : [], notes: meal.notes?.trim() || '', completedBy: meal.completedBy || {} }; }
-function cleanSavedActivity(activity: Partial<SavedActivity>): SavedActivity { return { owner: (activity.owner || 'shared') as PlanOwner, title: activity.title?.trim() || 'Ny aktivitet', time: activity.time?.trim() || '', comment: activity.comment?.trim() || '', createdBy: (activity.createdBy || 'robert') as UserKey }; }
-function emptyPlan(owner: PlanOwner, date: string): MealPlan { return { owner, title: owner === 'shared' ? 'Dagens gemensamma plan' : `${ownerLabel[owner]}s dag`, date, length: 'day', meals: defaultMeals.map((m) => ({ id: uid(), title: m.title, time: m.time, items: m.items, notes: '', completedBy: {} })) }; }
+function cleanSavedActivity(activity: Partial<SavedActivity>): SavedActivity { return { owner: (activity.owner || 'shared') as PlanOwner, title: activity.title?.trim() || 'Ny aktivitet', time: activity.time?.trim() || '', comment: activity.comment?.trim() || '', createdBy: (activity.createdBy || '') as UserKey }; }
+function emptyPlan(owner: PlanOwner, date: string): MealPlan { return { owner, title: owner === 'shared' ? 'Dagens gemensamma plan' : `${getOwnerLabel(owner)} · dagens plan`, date, length: 'day', meals: defaultMeals.map((m) => ({ id: uid(), title: m.title, time: m.time, items: m.items, notes: '', completedBy: {} })) }; }
 function cloneMeals(meals: Meal[]) { return meals.map((meal) => ({ ...cleanMeal(meal), id: uid(), completedBy: {} })); }
 function mealTotal(plan: MealPlan) { return plan.meals.filter((meal) => meal.items.length > 0).length; }
 function completedMeals(plan: MealPlan, user: UserKey) { return plan.meals.filter((meal) => meal.items.length > 0 && meal.completedBy[user]).length; }
@@ -85,11 +90,15 @@ function calendarRange(monthValue: string) {
   return { start, end: iso(endDate) };
 }
 
-export default function HealthApp({ owner }: { owner: PlanOwner }) {
+export default function HealthApp() {
   const [currentUser, setCurrentUser] = useState<LoginUser | null>(null);
-  const [loginName, setLoginName] = useState<UserKey>('robert');
-  const [password, setPassword] = useState('');
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [authDraft, setAuthDraft] = useState({ name: '', email: '', password: '' });
   const [loginError, setLoginError] = useState('');
+  const [groups, setGroups] = useState<HealthGroup[]>([]);
+  const [activeOwner, setActiveOwner] = useState<PlanOwner>('');
+  const [groupDraft, setGroupDraft] = useState({ name: '', description: '', inviteEmail: '' });
   const [selectedDate, setSelectedDate] = useState(today());
   const [calendarMonth, setCalendarMonth] = useState(monthStart(today()));
   const [tab, setTab] = useState<Tab>('today');
@@ -110,23 +119,28 @@ export default function HealthApp({ owner }: { owner: PlanOwner }) {
   const [isBusy, setIsBusy] = useState(false);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem('health-user');
-    if (!saved) return;
-    try {
-      const parsed = JSON.parse(saved) as LoginUser;
-      if (parsed?.key === 'robert' || parsed?.key === 'erika') setCurrentUser(parsed);
-    } catch { window.localStorage.removeItem('health-user'); }
+    void fetch('/api/auth/me')
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.user) {
+          setCurrentUser(data.user);
+          setActiveOwner(data.user.key);
+        }
+      })
+      .finally(() => setAuthChecked(true));
   }, []);
 
   useEffect(() => {
     if (!currentUser) return;
+    if (!activeOwner) setActiveOwner(currentUser.key);
     setIsBusy(true);
-    void refreshData().finally(() => setIsBusy(false));
-  }, [currentUser, selectedDate, calendarMonth]);
+    void Promise.all([refreshData(), refreshGroups()]).finally(() => setIsBusy(false));
+  }, [currentUser, selectedDate, calendarMonth, activeOwner]);
 
+  const owner = activeOwner || currentUser?.key || 'shared';
   const plan = useMemo(() => plans.find((item) => item.owner === owner) || emptyPlan(owner, selectedDate), [plans, owner, selectedDate]);
   const ownerActivities = useMemo(() => activities.filter((activity) => activity.owner === owner), [activities, owner]);
-  const canEdit = Boolean(currentUser && (owner === 'shared' || owner === currentUser.key));
+  const canEdit = Boolean(currentUser);
   const ownerSavedMeals = savedMeals.filter((meal) => meal.owner === owner);
   const ownerSavedActivities = savedActivities.filter((activity) => activity.owner === owner);
   const ownerDayPlans = dayPlans.filter((dayPlan) => dayPlan.owner === owner);
@@ -168,15 +182,43 @@ export default function HealthApp({ owner }: { owner: PlanOwner }) {
     window.setTimeout(() => setToast((active) => (active?.id === id ? null : active)), 2600);
   }
 
-  function login() {
-    const found = USERS.find((user) => user.key === loginName && user.password === password.trim());
-    if (!found) return setLoginError('Fel namn eller kod. Testa igen.');
-    const user = { name: found.name, key: found.key } satisfies LoginUser;
-    window.localStorage.setItem('health-user', JSON.stringify(user));
-    setCurrentUser(user);
+  async function submitAuth() {
     setLoginError('');
+    const path = authMode === 'signup' ? '/api/auth/signup' : '/api/auth/login';
+    const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(authDraft) });
+    const data = await response.json();
+    if (!response.ok) return setLoginError(data.message || 'Kunde inte logga in.');
+    setCurrentUser(data.user);
+    setActiveOwner(data.user.key);
+    if (data.confirmationUrl) showToast('Konto skapat. Dev-länk för bekräftelse finns i svaret/loggen.', 'good');
   }
-  function logout() { window.localStorage.removeItem('health-user'); setCurrentUser(null); setPassword(''); }
+  async function logout() { await fetch('/api/auth/logout', { method: 'POST' }); setCurrentUser(null); setActiveOwner(''); setGroups([]); setAuthDraft({ name: '', email: '', password: '' }); }
+  async function refreshGroups() {
+    const response = await fetch('/api/groups');
+    if (!response.ok) return setGroups([]);
+    const data = await response.json();
+    setGroups(data.groups || []);
+  }
+  async function createGroup() {
+    if (!groupDraft.name.trim()) return showToast('Skriv ett namn på gruppen först.', 'bad');
+    const response = await fetch('/api/groups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: groupDraft.name, description: groupDraft.description }) });
+    if (!response.ok) return showToast('Kunde inte skapa gruppen.', 'bad');
+    const data = await response.json();
+    await refreshGroups();
+    setActiveOwner(`group:${data.group._id}`);
+    setGroupDraft({ name: '', description: '', inviteEmail: '' });
+    showToast('Gruppen är skapad.');
+  }
+  async function inviteToActiveGroup() {
+    const groupId = owner.startsWith('group:') ? owner.replace('group:', '') : '';
+    if (!groupId) return showToast('Välj en grupp först.', 'bad');
+    const response = await fetch(`/api/groups/${groupId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'invite', email: groupDraft.inviteEmail }) });
+    const data = await response.json();
+    if (!response.ok) return showToast(data.message || 'Kunde inte bjuda in.', 'bad');
+    setGroupDraft((draft) => ({ ...draft, inviteEmail: '' }));
+    await refreshGroups();
+    showToast('Vännen är tillagd i gruppen.');
+  }
 
   function patchPlan(updater: (mealPlan: MealPlan) => MealPlan) {
     const updated = updater(plan);
@@ -314,15 +356,16 @@ export default function HealthApp({ owner }: { owner: PlanOwner }) {
   }
   async function deleteWeekPlan(id?: string) { if (!id) return; await fetch(`/api/week-plans/${id}`, { method: 'DELETE' }); await refreshData(); showToast('Veckoplanen är borttagen.'); }
 
-  if (!currentUser) return <LoginScreen loginName={loginName} setLoginName={setLoginName} password={password} setPassword={setPassword} login={login} loginError={loginError} />;
+  if (!authChecked) return <main className="min-h-screen bg-[#07080c] text-white"><Background /><div className="relative z-10 grid min-h-screen place-items-center"><p className="rounded-3xl border border-white/10 bg-white/10 px-6 py-4 font-black">Laddar...</p></div></main>;
+  if (!currentUser) return <LoginScreen mode={authMode} setMode={setAuthMode} draft={authDraft} setDraft={setAuthDraft} submit={submitAuth} loginError={loginError} />;
 
   return (
     <main className="min-h-screen overflow-hidden text-white">
       <Background />
       <div className="relative z-10 mx-auto grid max-w-[1760px] gap-5 p-3 md:p-5 xl:grid-cols-[300px_minmax(0,1fr)]">
-        <Sidebar owner={owner} currentUser={currentUser} logout={logout} />
+        <Sidebar owner={owner} currentUser={currentUser} groups={groups} activeOwner={owner} setActiveOwner={setActiveOwner} groupDraft={groupDraft} setGroupDraft={setGroupDraft} createGroup={createGroup} inviteToActiveGroup={inviteToActiveGroup} logout={logout} />
         <section className="min-w-0 space-y-5">
-          <Hero owner={owner} currentUser={currentUser} selectedDate={selectedDate} setSelectedDate={(date) => { setSelectedDate(date); setCalendarMonth(monthStart(date)); }} plan={plan} activities={ownerActivities} />
+          <Hero owner={owner} groups={groups} currentUser={currentUser} selectedDate={selectedDate} setSelectedDate={(date) => { setSelectedDate(date); setCalendarMonth(monthStart(date)); }} plan={plan} activities={ownerActivities} />
           <TabBar tab={tab} setTab={setTab} />
           {toast && <ToastCard toast={toast} />}
           {isBusy && <div className="rounded-3xl border border-slate-200 bg-white/80 px-5 py-4 text-sm font-black text-slate-500">Laddar...</div>}
@@ -413,7 +456,8 @@ function Background() {
   );
 }
 
-function LoginScreen({ loginName, setLoginName, password, setPassword, login, loginError }: { loginName: UserKey; setLoginName: (value: UserKey) => void; password: string; setPassword: (value: string) => void; login: () => void; loginError: string }) {
+function LoginScreen({ mode, setMode, draft, setDraft, submit, loginError }: { mode: 'login' | 'signup'; setMode: (mode: 'login' | 'signup') => void; draft: { name: string; email: string; password: string }; setDraft: (draft: { name: string; email: string; password: string }) => void; submit: () => void; loginError: string }) {
+  const isSignup = mode === 'signup';
   return (
     <main className="min-h-screen text-white">
       <Background />
@@ -421,31 +465,31 @@ function LoginScreen({ loginName, setLoginName, password, setPassword, login, lo
         <div className="grid w-full overflow-hidden rounded-[2.75rem] border border-white/10 bg-white/[0.06] shadow-[0_40px_140px_rgba(0,0,0,0.45)] backdrop-blur-2xl lg:grid-cols-[1.2fr_0.8fr]">
           <div className="relative min-h-[640px] overflow-hidden p-8 md:p-12">
             <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-emerald-400/30 blur-3xl" />
-            <div className="absolute bottom-8 left-8 right-8 rounded-[2rem] border border-white/10 bg-black/25 p-5 backdrop-blur-xl md:left-auto md:w-96">
-              <p className="text-xs font-black uppercase tracking-[0.32em] text-white/40">Today flow</p>
+            <div className="absolute bottom-8 left-8 right-8 rounded-[2rem] border border-white/10 bg-black/25 p-5 backdrop-blur-xl md:left-auto md:w-[28rem]">
+              <p className="text-xs font-black uppercase tracking-[0.32em] text-white/40">Welcome to Your Health</p>
               <div className="mt-4 space-y-3">
-                <PreviewRow time="08:00" title="Frukost" meta="Ägg, kaffe, grapefruit" done />
-                <PreviewRow time="12:00" title="Lunch" meta="Meal prep · protein" />
-                <PreviewRow time="18:30" title="Gym" meta="Push session · 55 min" />
+                <PreviewRow time="Meals" title="Planera veckan" meta="Frukost, lunch, mellis, middag" done />
+                <PreviewRow time="Training" title="Spara aktiviteter" meta="Dagsplaner och veckoplaner" />
+                <PreviewRow time="Share" title="Inspirera varandra" meta="Privat eller grupp upp till 10 personer" />
               </div>
             </div>
             <div className="relative max-w-3xl">
-              <div className="inline-flex rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-[0.28em] text-emerald-200 backdrop-blur-xl">HealthApp 2026</div>
-              <h1 className="mt-8 text-6xl font-black leading-[0.88] tracking-[-0.08em] text-white md:text-8xl">Your week.<br />Planned clean.</h1>
-              <p className="mt-8 max-w-xl text-lg font-semibold leading-8 text-white/60">En privat dashboard för måltider, träning, sparade mallar, veckoplaner och dagliga checkar.</p>
+              <div className="inline-flex rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-[0.28em] text-emerald-200 backdrop-blur-xl">DinHälsa · HealthApp 2026</div>
+              <h1 className="mt-8 text-6xl font-black leading-[0.88] tracking-[-0.08em] text-white md:text-8xl">Build your health rhythm.</h1>
+              <p className="mt-8 max-w-xl text-lg font-semibold leading-8 text-white/60">Skapa måltidsplaner, spara dina bästa måltider, planera träning, bygg dag- och veckoplaner och dela inspiration med familj eller vänner.</p>
             </div>
           </div>
           <div className="flex items-center border-t border-white/10 bg-white/[0.08] p-5 md:p-10 lg:border-l lg:border-t-0">
             <div className="w-full rounded-[2rem] border border-white/10 bg-white/90 p-6 text-slate-950 shadow-2xl md:p-8">
-              <p className="text-xs font-black uppercase tracking-[0.32em] text-emerald-600">Logga in</p>
-              <h2 className="mt-3 text-4xl font-black tracking-[-0.07em]">Välj profil</h2>
-              <div className="mt-8 grid grid-cols-2 gap-3">
-                <button onClick={() => setLoginName('robert')} className={loginName === 'robert' ? primaryButton : softButton}>Robert</button>
-                <button onClick={() => setLoginName('erika')} className={loginName === 'erika' ? primaryButton : softButton}>Erika</button>
-              </div>
-              <input className={`${input} mt-4`} type="password" value={password} onChange={(event) => setPassword(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && login()} placeholder="Kod" />
+              <p className="text-xs font-black uppercase tracking-[0.32em] text-emerald-600">{isSignup ? 'Skapa konto' : 'Logga in'}</p>
+              <h2 className="mt-3 text-4xl font-black tracking-[-0.07em]">{isSignup ? 'Welcome to Your Health' : 'Välkommen tillbaka'}</h2>
+              {isSignup && <input className={`${input} mt-6`} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="Namn" />}
+              <input className={`${input} ${isSignup ? 'mt-3' : 'mt-6'}`} type="email" value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })} placeholder="Email" />
+              <input className={`${input} mt-3`} type="password" value={draft.password} onChange={(event) => setDraft({ ...draft, password: event.target.value })} onKeyDown={(event) => event.key === 'Enter' && submit()} placeholder="Lösenord minst 8 tecken" />
+              {isSignup && <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold leading-6 text-emerald-900">Du får ett confirmation mail. Där står att du kan använda appen för måltidsplaner, sparade måltider, träning och hälso-tips till andra.</p>}
               {loginError && <p className="mt-3 text-sm font-black text-rose-600">{loginError}</p>}
-              <button onClick={login} className={`${greenButton} mt-5 w-full`}>Öppna dashboard</button>
+              <button onClick={submit} className={`${greenButton} mt-5 w-full`}>{isSignup ? 'Skapa konto' : 'Öppna dashboard'}</button>
+              <button onClick={() => { setMode(isSignup ? 'login' : 'signup'); }} className="mt-4 w-full text-sm font-black text-slate-500 hover:text-slate-950">{isSignup ? 'Har du redan konto? Logga in' : 'Inget konto än? Skapa konto'}</button>
             </div>
           </div>
         </div>
@@ -454,7 +498,8 @@ function LoginScreen({ loginName, setLoginName, password, setPassword, login, lo
   );
 }
 
-function Sidebar({ owner, currentUser, logout }: { owner: PlanOwner; currentUser: LoginUser; logout: () => void }) {
+function Sidebar({ owner, currentUser, groups, activeOwner, setActiveOwner, groupDraft, setGroupDraft, createGroup, inviteToActiveGroup, logout }: { owner: PlanOwner; currentUser: LoginUser; groups: HealthGroup[]; activeOwner: PlanOwner; setActiveOwner: (owner: PlanOwner) => void; groupDraft: { name: string; description: string; inviteEmail: string }; setGroupDraft: (draft: { name: string; description: string; inviteEmail: string }) => void; createGroup: () => void; inviteToActiveGroup: () => void; logout: () => void }) {
+  const selectedGroup = groups.find((group) => `group:${group._id}` === activeOwner);
   return (
     <aside className="xl:sticky xl:top-5">
       <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.08] p-3 text-white shadow-[0_28px_100px_rgba(0,0,0,0.30)] backdrop-blur-2xl">
@@ -462,22 +507,33 @@ function Sidebar({ owner, currentUser, logout }: { owner: PlanOwner; currentUser
           <div className="flex items-center gap-3">
             <div className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-400 text-xl font-black text-slate-950">H</div>
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-white/40">HealthApp</p>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-white/40">DinHälsa</p>
               <h2 className="text-2xl font-black tracking-[-0.07em]">2026</h2>
             </div>
           </div>
           <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-200">Workspace</p>
-            <p className="mt-2 text-lg font-black">{ownerLabel[owner]}</p>
+            <p className="mt-2 text-lg font-black">{getOwnerLabel(owner, currentUser, groups)}</p>
             <p className="mt-1 text-sm font-semibold text-white/50">Inloggad som {currentUser.name}</p>
           </div>
         </div>
         <nav className="mt-3 space-y-2 rounded-[1.65rem] bg-black/20 p-3 ring-1 ring-white/10">
-          <NavLink href="/" icon="◈" label="Gemensam" active={owner === 'shared'} />
-          <NavLink href="/robert" icon="R" label="Robert" active={owner === 'robert'} />
-          <NavLink href="/erika" icon="E" label="Erika" active={owner === 'erika'} />
-          <NavLink href="/tips" icon="✦" label="Tips" active={false} />
+          <button onClick={() => setActiveOwner(currentUser.key)} className={`w-full text-left ${activeOwner === currentUser.key ? 'rounded-2xl bg-white text-slate-950 shadow-xl' : 'rounded-2xl text-white/60 hover:bg-white/[0.08] hover:text-white'} px-3 py-3 text-sm font-black transition`}>● Min privata plan</button>
+          {groups.map((group) => (
+            <button key={group._id} onClick={() => setActiveOwner(`group:${group._id}`)} className={`w-full text-left ${activeOwner === `group:${group._id}` ? 'rounded-2xl bg-white text-slate-950 shadow-xl' : 'rounded-2xl text-white/60 hover:bg-white/[0.08] hover:text-white'} px-3 py-3 text-sm font-black transition`}>◌ {group.name}</button>
+          ))}
+          <NavLink href="/tips" icon="✦" label="Hälsotips" active={false} />
         </nav>
+        <div className="mt-3 rounded-[1.65rem] border border-white/10 bg-white/[0.06] p-3">
+          <p className="px-2 text-xs font-black uppercase tracking-[0.22em] text-white/35">Dela med vänner</p>
+          <input className={`${darkInput} mt-3 py-2`} value={groupDraft.name} onChange={(event) => setGroupDraft({ ...groupDraft, name: event.target.value })} placeholder="Ny grupp, t.ex. Familjen" />
+          <button onClick={createGroup} className={`${softDarkButton} mt-2 w-full py-2`}>Skapa grupp</button>
+          {selectedGroup && <div className="mt-3 rounded-2xl bg-black/20 p-3">
+            <p className="text-xs font-black text-white/45">{selectedGroup.members?.length || 0}/10 medlemmar</p>
+            <input className={`${darkInput} mt-2 py-2`} value={groupDraft.inviteEmail} onChange={(event) => setGroupDraft({ ...groupDraft, inviteEmail: event.target.value })} placeholder="vän@email.se" />
+            <button onClick={inviteToActiveGroup} className={`${greenButton} mt-2 w-full py-2`}>Bjud in</button>
+          </div>}
+        </div>
         <button onClick={logout} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 text-sm font-black text-white/70 transition hover:bg-white/[0.12] hover:text-white">Logga ut</button>
       </div>
     </aside>
@@ -493,26 +549,26 @@ function NavLink({ href, icon, label, active }: { href: string; icon: string; la
   );
 }
 
-function Hero({ owner, currentUser, selectedDate, setSelectedDate, plan, activities }: { owner: PlanOwner; currentUser: LoginUser; selectedDate: string; setSelectedDate: (date: string) => void; plan: MealPlan; activities: Activity[] }) {
+function Hero({ owner, groups, currentUser, selectedDate, setSelectedDate, plan, activities }: { owner: PlanOwner; groups: HealthGroup[]; currentUser: LoginUser; selectedDate: string; setSelectedDate: (date: string) => void; plan: MealPlan; activities: Activity[] }) {
   const doneMeals = completedMeals(plan, currentUser.key);
   const totalMeals = mealTotal(plan);
   const doneActivities = completedActivities(activities, currentUser.key);
   const totalActivities = activityTotal(activities);
   return (
-    <section className="overflow-hidden rounded-[2.2rem] border border-white/10 bg-white/[0.09] p-4 text-white shadow-[0_28px_100px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
+    <section className="overflow-hidden rounded-[1.6rem] border border-white/10 bg-white/[0.09] p-3 text-white shadow-[0_28px_100px_rgba(0,0,0,0.28)] backdrop-blur-2xl sm:rounded-[2rem] sm:p-4 md:rounded-[2.2rem] md:p-6">
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_390px]">
-        <div className="relative overflow-hidden rounded-[1.8rem] bg-gradient-to-br from-white/[0.15] via-white/[0.08] to-emerald-400/[0.14] p-6 ring-1 ring-white/10 md:p-8">
+        <div className="relative overflow-hidden rounded-[1.35rem] bg-gradient-to-br from-white/[0.15] via-white/[0.08] to-emerald-400/[0.14] p-4 ring-1 ring-white/10 sm:rounded-[1.6rem] sm:p-5 md:rounded-[1.8rem] md:p-8">
           <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-emerald-300/25 blur-3xl" />
           <div className="relative">
             <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase tracking-[0.26em] text-emerald-100">{ownerLabel[owner]} dashboard</span>
-              <span className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-white/50">{lengthLabel[plan.length]}</span>
+              <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1.5 text-[0.62rem] font-black uppercase tracking-[0.18em] text-emerald-100 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.26em]">{getOwnerLabel(owner, currentUser, groups)} dashboard</span>
+              <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-[0.62rem] font-black uppercase tracking-[0.16em] text-white/50 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.22em]">{lengthLabel[plan.length]}</span>
             </div>
-            <h1 className="mt-6 max-w-3xl text-5xl font-black leading-[0.92] tracking-[-0.08em] md:text-7xl">{plan.title}</h1>
-            <p className="mt-5 text-lg font-semibold capitalize text-white/50">{formatDate(selectedDate)} · {currentUser.name}</p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <input className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm font-black text-white outline-none [color-scheme:dark]" type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />
-              <button onClick={() => setSelectedDate(today())} className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-black text-white/75 transition hover:bg-white/15 hover:text-white">Idag</button>
+            <h1 className="mt-4 max-w-3xl text-[2.45rem] font-black leading-[0.92] tracking-[-0.08em] sm:text-5xl md:mt-6 md:text-7xl">{plan.title}</h1>
+            <p className="mt-3 text-sm font-semibold capitalize text-white/50 sm:text-base md:mt-5 md:text-lg">{formatDate(selectedDate)} · {currentUser.name}</p>
+            <div className="mt-5 flex flex-wrap gap-2 sm:gap-3 md:mt-7">
+              <input className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-xs font-black text-white outline-none [color-scheme:dark] sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm" type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />
+              <button onClick={() => setSelectedDate(today())} className="rounded-xl border border-white/10 bg-white/10 px-3 py-2.5 text-xs font-black text-white/75 transition hover:bg-white/15 hover:text-white sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">Idag</button>
             </div>
           </div>
         </div>
@@ -558,15 +614,15 @@ function TabBar({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
 
 function WeekStrip({ dates, selectedDate, setSelectedDate }: { dates: string[]; selectedDate: string; setSelectedDate: (date: string) => void }) {
   return (
-    <section className="grid gap-3 md:grid-cols-7">
+    <section className="grid grid-cols-7 gap-1.5 sm:gap-2 md:gap-3">
       {dates.map((date, index) => {
         const active = date === selectedDate;
         const parsed = toDate(date);
         return (
-          <button key={date} onClick={() => setSelectedDate(date)} className={`group overflow-hidden rounded-[1.55rem] border p-4 text-left shadow-xl transition hover:-translate-y-0.5 ${active ? 'border-emerald-300/35 bg-emerald-300 text-slate-950 shadow-emerald-900/20' : 'border-white/10 bg-white/[0.08] text-white backdrop-blur-xl hover:bg-white/[0.12]'}`}>
-            <p className={`text-xs font-black uppercase tracking-[0.2em] ${active ? 'text-slate-700' : 'text-white/40'}`}>{weekdays[index]}</p>
-            <p className="mt-2 text-3xl font-black tracking-[-0.08em]">{parsed.getDate()}</p>
-            <p className={`mt-1 text-xs font-bold capitalize ${active ? 'text-slate-700' : 'text-white/40'}`}>{parsed.toLocaleDateString('sv-SE', { month: 'short' })}</p>
+          <button key={date} onClick={() => setSelectedDate(date)} className={`group min-w-0 overflow-hidden rounded-2xl border px-1 py-2 text-center shadow-lg transition hover:-translate-y-0.5 sm:rounded-[1.25rem] sm:px-2 sm:py-3 md:rounded-[1.55rem] md:p-4 md:text-left md:shadow-xl ${active ? 'border-emerald-300/35 bg-emerald-300 text-slate-950 shadow-emerald-900/20' : 'border-white/10 bg-white/[0.08] text-white backdrop-blur-xl hover:bg-white/[0.12]'}`}>
+            <p className={`truncate text-[0.58rem] font-black uppercase tracking-[0.08em] sm:text-[0.65rem] sm:tracking-[0.14em] md:text-xs md:tracking-[0.2em] ${active ? 'text-slate-700' : 'text-white/40'}`}>{weekdays[index]}</p>
+            <p className="mt-1 text-xl font-black tracking-[-0.08em] sm:text-2xl md:mt-2 md:text-3xl">{parsed.getDate()}</p>
+            <p className={`mt-0.5 truncate text-[0.6rem] font-bold capitalize sm:text-xs md:mt-1 ${active ? 'text-slate-700' : 'text-white/40'}`}>{parsed.toLocaleDateString('sv-SE', { month: 'short' })}</p>
           </button>
         );
       })}

@@ -2,11 +2,10 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
 import type { MealPlan, PlanOwner } from '@/lib/types';
 
-const owners: PlanOwner[] = ['shared', 'robert', 'erika'];
 const lengths = ['day', 'week', 'ongoing'];
 
 function isOwner(value: unknown): value is PlanOwner {
-  return typeof value === 'string' && owners.includes(value as PlanOwner);
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 export async function GET(request: Request) {

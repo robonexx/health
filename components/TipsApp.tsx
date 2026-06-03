@@ -3,19 +3,10 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import type { HealthTip, UserKey } from '@/lib/types';
+import type { AppUser, HealthTip } from '@/lib/types';
 
-type LoginUser = { name: string; key: UserKey };
-type NavKey = 'shared' | 'robert' | 'erika' | 'tips';
-
+type LoginUser = AppUser & { id: string };
 type TipCategory = HealthTip['category'];
-
-const USERS = [
-  { name: 'Robert', key: 'robert', password: 'robert26' },
-  { name: 'Robert', key: 'robert', password: 'robert 26' },
-  { name: 'Erika', key: 'erika', password: 'erika26' },
-] as const;
-
 const categoryLabels: Record<TipCategory, string> = {
   meal: 'Maträtt',
   smoothie: 'Smoothie',
@@ -45,29 +36,18 @@ function Background() {
 
 export default function TipsApp() {
   const [currentUser, setCurrentUser] = useState<LoginUser | null>(null);
-  const [loginName, setLoginName] = useState<UserKey>('robert');
-  const [password, setPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
   const [tips, setTips] = useState<HealthTip[]>([]);
   const [isBusy, setIsBusy] = useState(false);
   const [message, setMessage] = useState('');
 
   useEffect(() => {
     let ignore = false;
-    void Promise.resolve().then(() => {
-      if (ignore) return;
-      const saved = window.localStorage.getItem('health-user');
-      if (!saved) return;
-      try {
-        const parsed = JSON.parse(saved) as LoginUser;
-        if (parsed?.key === 'robert' || parsed?.key === 'erika') setCurrentUser(parsed);
-      } catch {
-        window.localStorage.removeItem('health-user');
-      }
-    });
-    return () => {
-      ignore = true;
-    };
+    void fetch('/api/auth/me')
+      .then((response) => response.json())
+      .then((data) => {
+        if (!ignore && data.user) setCurrentUser(data.user);
+      });
+    return () => { ignore = true; };
   }, []);
 
   useEffect(() => {
@@ -85,20 +65,8 @@ export default function TipsApp() {
     };
   }, [currentUser]);
 
-  function login() {
-    const found = USERS.find((user) => user.key === loginName && user.password === password.trim());
-    if (!found) {
-      setLoginError('Fel namn eller kod. Testa igen.');
-      return;
-    }
-    const user = { name: found.name, key: found.key } satisfies LoginUser;
-    window.localStorage.setItem('health-user', JSON.stringify(user));
-    setCurrentUser(user);
-    setLoginError('');
-  }
-
-  function logout() {
-    window.localStorage.removeItem('health-user');
+  async function logout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
     setCurrentUser(null);
   }
 
@@ -164,7 +132,7 @@ export default function TipsApp() {
   }
 
   if (!currentUser) {
-    return <LoginScreen loginName={loginName} setLoginName={setLoginName} password={password} setPassword={setPassword} login={login} loginError={loginError} />;
+    return <main className="min-h-screen bg-zinc-950 px-4 py-10 text-white"><div className="mx-auto max-w-xl rounded-[2rem] border border-white/10 bg-white/[0.08] p-8 text-center"><h1 className="text-4xl font-black tracking-[-0.06em]">Logga in först</h1><p className="mt-3 text-white/60">Skapa konto eller logga in på startsidan för att dela hälso-tips.</p><Link href="/" className="mt-6 inline-flex rounded-2xl bg-[#99c75b] px-5 py-3 text-sm font-black text-zinc-950">Till login</Link></div></main>;
   }
 
   return (
@@ -234,6 +202,26 @@ export default function TipsApp() {
 }
 
 
+
+function SideNav({ currentUser, active, logout }: { currentUser: LoginUser; active: 'tips'; logout: () => void }) {
+  return (
+    <aside className="xl:sticky xl:top-5">
+      <div className="rounded-[2rem] border border-zinc-950/10 bg-white/80 p-4 shadow-[0_22px_70px_rgba(18,18,18,0.08)] backdrop-blur-xl">
+        <div className="rounded-[1.5rem] bg-zinc-950 p-5 text-white">
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-white/40">DinHälsa</p>
+          <h2 className="mt-2 text-3xl font-black tracking-[-0.07em]">Health tips</h2>
+          <p className="mt-3 text-sm font-semibold text-white/50">Inloggad som {currentUser.name}</p>
+        </div>
+        <nav className="mt-3 space-y-2">
+          <Link href="/" className="flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-black text-zinc-500 transition hover:bg-zinc-950 hover:text-white">◈ Dashboard</Link>
+          <Link href="/tips" className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-black transition ${active === 'tips' ? 'bg-zinc-950 text-white' : 'text-zinc-500 hover:bg-zinc-950 hover:text-white'}`}>✦ Hälsotips</Link>
+        </nav>
+        <button onClick={logout} className="mt-3 w-full rounded-2xl bg-zinc-100 px-4 py-3 text-sm font-black text-zinc-500 transition hover:bg-zinc-950 hover:text-white">Logga ut</button>
+      </div>
+    </aside>
+  );
+}
+
 function HealthTipCard({ tip, index, onUpdate, onDelete }: { tip: HealthTip; index: number; onUpdate: (patch: Partial<HealthTip>) => void; onDelete: () => void }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ title: tip.title, category: tip.category, body: tip.body });
@@ -293,79 +281,3 @@ function HealthTipCard({ tip, index, onUpdate, onDelete }: { tip: HealthTip; ind
   );
 }
 
-function LoginScreen({ loginName, setLoginName, password, setPassword, login, loginError }: {
-  loginName: UserKey;
-  setLoginName: (value: UserKey) => void;
-  password: string;
-  setPassword: (value: string) => void;
-  login: () => void;
-  loginError: string;
-}) {
-  return (
-    <main className="min-h-screen bg-[#f3f0e8] text-zinc-950">
-      <Background />
-      <section className="relative z-10 mx-auto grid min-h-screen max-w-7xl place-items-center px-4 py-8">
-        <div className="grid w-full overflow-hidden rounded-[2.5rem] border border-zinc-950/10 bg-white/65 shadow-[0_30px_100px_rgba(24,24,27,0.12)] backdrop-blur-xl lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="relative min-h-[560px] overflow-hidden bg-zinc-950 p-7 text-white md:p-12">
-            <div className="absolute -bottom-24 -right-20 h-80 w-80 rounded-full bg-[#99c75b] blur-3xl" />
-            <p className="text-xs font-black uppercase tracking-[0.42em] text-[#99c75b]">Robert & Erika</p>
-            <h1 className="mt-8 max-w-2xl text-6xl font-black uppercase leading-[0.82] tracking-[-0.08em] md:text-8xl">Health<br />tips<br />2026</h1>
-            <p className="mt-8 max-w-xl text-lg font-semibold leading-8 text-white/58">Logga in och spara gemensamma tips för mat, träning och hälsa.</p>
-          </div>
-          <div className="p-5 md:p-9">
-            <div className="flex h-full flex-col justify-between rounded-[2rem] bg-[#f5d77d] p-6 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.10)] md:p-8">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.36em] text-zinc-950/45">Login</p>
-                <h2 className="mt-4 text-5xl font-black uppercase leading-[0.86] tracking-[-0.07em] md:text-6xl">Open app</h2>
-                <div className="mt-8 space-y-4">
-                  <select value={loginName} onChange={(event) => setLoginName(event.target.value as UserKey)} className="w-full rounded-2xl border border-zinc-950/10 bg-white px-4 py-4 font-black outline-none focus:ring-4 focus:ring-zinc-950/10">
-                    <option value="robert">Robert</option>
-                    <option value="erika">Erika</option>
-                  </select>
-                  <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && login()} className="w-full rounded-2xl border border-zinc-950/10 bg-white px-4 py-4 font-black outline-none placeholder:text-zinc-400 focus:ring-4 focus:ring-zinc-950/10" placeholder="Kod" />
-                  {loginError && <p className="rounded-2xl bg-zinc-950 px-4 py-3 text-sm font-black text-white">{loginError}</p>}
-                  <button onClick={login} className={`${blackButton} w-full py-4`}>Logga in</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function SideNav({ currentUser, active, logout }: { currentUser: LoginUser; active: NavKey; logout: () => void }) {
-  const links = [
-    { href: '/', label: 'Gemensam', key: 'shared' as NavKey },
-    { href: '/robert', label: 'Robert', key: 'robert' as NavKey },
-    { href: '/erika', label: 'Erika', key: 'erika' as NavKey },
-    { href: '/tips', label: 'Hälsotips', key: 'tips' as NavKey },
-  ];
-
-  return (
-    <aside className="xl:sticky xl:top-5 xl:h-[calc(100vh-2.5rem)]">
-      <div className={`${softCard} flex h-full flex-col p-4`}>
-        <Link href="/" className="overflow-hidden rounded-[1.8rem] bg-zinc-950 p-5 text-white">
-          <p className="text-xs font-black uppercase tracking-[0.32em] text-[#99c75b]">health</p>
-          <p className="mt-3 text-4xl font-black uppercase leading-[0.82] tracking-[-0.07em]">Food<br />flow</p>
-        </Link>
-        <div className="mt-4 rounded-[1.5rem] bg-[#f5d77d] p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.28em] text-zinc-950/45">Inloggad</p>
-          <p className="mt-1 text-2xl font-black tracking-[-0.05em]">{currentUser.name}</p>
-        </div>
-        <nav className="mt-4 grid gap-2">
-          {links.map((link) => (
-            <Link key={link.href} href={link.href} className={`flex items-center justify-between rounded-2xl px-4 py-4 text-sm font-black transition ${active === link.key ? 'bg-zinc-950 text-white shadow-[0_12px_28px_rgba(24,24,27,0.18)]' : 'bg-white/60 text-zinc-500 hover:bg-white hover:text-zinc-950'}`}>
-              <span>{link.label}</span>
-              <span className={`h-2 w-2 rounded-full ${active === link.key ? 'bg-[#99c75b]' : 'bg-zinc-950/15'}`} />
-            </Link>
-          ))}
-        </nav>
-        <div className="mt-auto pt-4">
-          <button onClick={logout} className="w-full rounded-2xl bg-white/60 px-4 py-4 text-sm font-black text-zinc-500 transition hover:bg-white hover:text-zinc-950">Logga ut</button>
-        </div>
-      </div>
-    </aside>
-  );
-}
