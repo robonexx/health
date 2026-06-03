@@ -50,6 +50,7 @@ export default function TipsApp() {
   const [loginError, setLoginError] = useState('');
   const [tips, setTips] = useState<HealthTip[]>([]);
   const [isBusy, setIsBusy] = useState(false);
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     let ignore = false;
@@ -107,6 +108,11 @@ export default function TipsApp() {
     setTips(data.tips || []);
   }
 
+  function flash(text: string) {
+    setMessage(text);
+    window.setTimeout(() => setMessage(''), 2600);
+  }
+
   async function addTip(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!currentUser) return;
@@ -116,21 +122,45 @@ export default function TipsApp() {
     const body = String(form.get('body') || '').trim();
     if (!title || !body) return;
 
+    const formElement = event.currentTarget;
     const response = await fetch('/api/tips', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, category, body, createdBy: currentUser.key }),
     });
-    if (response.ok) {
-      event.currentTarget.reset();
-      await loadTips();
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      flash(data?.message || 'Kunde inte spara tipset. Kolla MongoDB/Vercel env.');
+      return;
     }
+    formElement.reset();
+    await loadTips();
+    flash('Hälsotipset är sparat.');
+  }
+
+  async function updateTip(tip: HealthTip, patch: Partial<HealthTip>) {
+    if (!tip._id) return;
+    const response = await fetch(`/api/tips/${tip._id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    if (!response.ok) {
+      flash('Kunde inte uppdatera tipset.');
+      return;
+    }
+    await loadTips();
   }
 
   async function deleteTip(id?: string) {
     if (!id) return;
-    await fetch(`/api/tips/${id}`, { method: 'DELETE' });
+    const response = await fetch(`/api/tips/${id}`, { method: 'DELETE' });
+    if (!response.ok) {
+      flash('Kunde inte ta bort tipset.');
+      return;
+    }
     await loadTips();
+    flash('Hälsotipset är borttaget.');
   }
 
   if (!currentUser) {
@@ -164,6 +194,7 @@ export default function TipsApp() {
           </header>
 
           {isBusy && <div className="rounded-3xl border border-zinc-950/10 bg-white/70 px-5 py-4 text-sm font-black text-zinc-500 shadow-sm">Laddar hälsotips...</div>}
+          {message && <div className="rounded-3xl border border-zinc-950/10 bg-zinc-950 px-5 py-4 text-sm font-black text-white shadow-xl">{message}</div>}
 
           <section className="grid gap-5 lg:grid-cols-[420px_minmax(0,1fr)]">
             <form onSubmit={addTip} className={`${softCard} p-5 md:p-6`}>
@@ -192,26 +223,73 @@ export default function TipsApp() {
                 </div>
               )}
               {tips.map((tip, index) => (
-                <article key={tip._id || `${tip.title}-${index}`} className="overflow-hidden rounded-[2rem] border border-zinc-950/10 bg-white shadow-[0_16px_45px_rgba(24,24,27,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_70px_rgba(24,24,27,0.10)]">
-                  <div className="flex items-center justify-between bg-zinc-950 p-4 text-white">
-                    <span className="rounded-full bg-[#99c75b] px-3 py-1 text-xs font-black uppercase text-zinc-950">{categoryLabels[tip.category]}</span>
-                    <span className="text-3xl font-black leading-none tracking-[-0.08em] text-[#f5d77d]">{String(index + 1).padStart(2, '0')}</span>
-                  </div>
-                  <div className="p-5">
-                    <h3 className="text-3xl font-black uppercase leading-[0.92] tracking-[-0.07em]">{tip.title}</h3>
-                    <p className="mt-4 whitespace-pre-line text-sm font-semibold leading-7 text-zinc-600">{tip.body}</p>
-                    <div className="mt-6 flex items-center justify-between gap-3 border-t border-zinc-950/10 pt-4">
-                      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-400">Av {tip.createdBy}</p>
-                      <button onClick={() => deleteTip(tip._id)} className="rounded-xl bg-zinc-100 px-3 py-2 text-xs font-black text-zinc-400 hover:bg-red-50 hover:text-red-700">Ta bort</button>
-                    </div>
-                  </div>
-                </article>
+                <HealthTipCard key={tip._id || `${tip.title}-${index}`} tip={tip} index={index} onUpdate={(patch) => updateTip(tip, patch)} onDelete={() => deleteTip(tip._id)} />
               ))}
             </div>
           </section>
         </section>
       </div>
     </main>
+  );
+}
+
+
+function HealthTipCard({ tip, index, onUpdate, onDelete }: { tip: HealthTip; index: number; onUpdate: (patch: Partial<HealthTip>) => void; onDelete: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({ title: tip.title, category: tip.category, body: tip.body });
+
+  useEffect(() => {
+    setDraft({ title: tip.title, category: tip.category, body: tip.body });
+  }, [tip.title, tip.category, tip.body]);
+
+  function save() {
+    if (!draft.title.trim() || !draft.body.trim()) return;
+    onUpdate({ title: draft.title, category: draft.category, body: draft.body });
+    setEditing(false);
+  }
+
+  return (
+    <article className="overflow-hidden rounded-[2rem] border border-zinc-950/10 bg-white shadow-[0_16px_45px_rgba(24,24,27,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_70px_rgba(24,24,27,0.10)]">
+      <div className="flex items-center justify-between bg-zinc-950 p-4 text-white">
+        <span className="rounded-full bg-[#99c75b] px-3 py-1 text-xs font-black uppercase text-zinc-950">{categoryLabels[tip.category]}</span>
+        <span className="text-3xl font-black leading-none tracking-[-0.08em] text-[#f5d77d]">{String(index + 1).padStart(2, '0')}</span>
+      </div>
+      <div className="p-5">
+        {editing ? (
+          <div className="space-y-3">
+            <input className={input} value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
+            <select className={input} value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value as TipCategory })}>
+              <option value="meal">Maträtt</option>
+              <option value="smoothie">Smoothie</option>
+              <option value="supplement">Supplement</option>
+              <option value="routine">Rutin</option>
+              <option value="training">Träning</option>
+              <option value="other">Annat</option>
+            </select>
+            <textarea rows={7} className={input} value={draft.body} onChange={(event) => setDraft({ ...draft, body: event.target.value })} />
+          </div>
+        ) : (
+          <>
+            <h3 className="text-3xl font-black uppercase leading-[0.92] tracking-[-0.07em]">{tip.title}</h3>
+            <p className="mt-4 whitespace-pre-line text-sm font-semibold leading-7 text-zinc-600">{tip.body}</p>
+          </>
+        )}
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-950/10 pt-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-400">Av {tip.createdBy}</p>
+          <div className="flex gap-2">
+            {editing ? (
+              <>
+                <button onClick={() => setEditing(false)} className="rounded-xl bg-zinc-100 px-3 py-2 text-xs font-black text-zinc-500 hover:bg-zinc-200">Avbryt</button>
+                <button onClick={save} className="rounded-xl bg-zinc-950 px-3 py-2 text-xs font-black text-white hover:bg-[#99c75b] hover:text-zinc-950">Spara</button>
+              </>
+            ) : (
+              <button onClick={() => setEditing(true)} className="rounded-xl bg-zinc-100 px-3 py-2 text-xs font-black text-zinc-500 hover:bg-zinc-200">Ändra</button>
+            )}
+            <button onClick={onDelete} className="rounded-xl bg-zinc-100 px-3 py-2 text-xs font-black text-zinc-400 hover:bg-red-50 hover:text-red-700">Ta bort</button>
+          </div>
+        </div>
+      </div>
+    </article>
   );
 }
 

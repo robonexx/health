@@ -104,6 +104,8 @@ export default function HealthApp({ owner }: { owner: PlanOwner }) {
   const [weekPlans, setWeekPlans] = useState<SavedWeekPlan[]>([]);
   const [activityDraft, setActivityDraft] = useState({ title: '', time: '', comment: '' });
   const [mealDraft, setMealDraft] = useState({ title: '', time: '', item: '', notes: '' });
+  const [mealModalMode, setMealModalMode] = useState<'create' | 'edit' | null>(null);
+  const [editingMealId, setEditingMealId] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast>(null);
   const [isBusy, setIsBusy] = useState(false);
 
@@ -182,10 +184,24 @@ export default function HealthApp({ owner }: { owner: PlanOwner }) {
   }
   function updateMeal(mealId: string, patch: Partial<Meal>) { patchPlan((p) => ({ ...p, meals: p.meals.map((meal) => meal.id === mealId ? cleanMeal({ ...meal, ...patch }) : meal) })); }
   function addMeal(meal?: Partial<Meal>) { patchPlan((p) => ({ ...p, meals: [...p.meals, cleanMeal({ id: uid(), title: meal?.title || 'Ny måltid', time: meal?.time || '', items: meal?.items || [], notes: meal?.notes || '', completedBy: {} })] })); }
+  function openCreateMealModal() {
+    setMealDraft({ title: '', time: '', item: '', notes: '' });
+    setEditingMealId(null);
+    setMealModalMode('create');
+  }
+  function openEditMealModal(mealId: string) {
+    setEditingMealId(mealId);
+    setMealModalMode('edit');
+  }
+  function closeMealModal() {
+    setMealModalMode(null);
+    setEditingMealId(null);
+  }
   function createMealFromDraft() {
     if (!mealDraft.title.trim()) return showToast('Skriv ett namn på måltiden först, till exempel Förmiddags mellanmål.', 'bad');
     addMeal({ title: mealDraft.title, time: mealDraft.time, items: parseItems(mealDraft.item), notes: mealDraft.notes });
     setMealDraft({ title: '', time: '', item: '', notes: '' });
+    closeMealModal();
     showToast('Måltiden är tillagd i dagens plan.');
   }
   function removeMeal(mealId: string) { patchPlan((p) => ({ ...p, meals: p.meals.filter((meal) => meal.id !== mealId) })); }
@@ -315,11 +331,8 @@ export default function HealthApp({ owner }: { owner: PlanOwner }) {
             <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_430px]">
               <section className="space-y-5">
                 <WeekStrip dates={selectedWeek} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
-                <PlannerHeader plan={plan} canEdit={canEdit} onTitle={(title) => patchPlan((p) => ({ ...p, title }))} onLength={(length) => patchPlan((p) => ({ ...p, length }))} onSave={() => savePlan()} onDelete={deletePlan} onSaveFoodDay={() => saveDayPlan('food')} onSaveFullDay={() => saveDayPlan('full')} onSaveWeek={saveWeekPlan} onAddMeal={() => addMeal()} />
-                <MealComposer draft={mealDraft} setDraft={setMealDraft} canEdit={canEdit} onCreate={createMealFromDraft} />
-                <div className="grid gap-4 xl:grid-cols-2">
-                  {plan.meals.map((meal) => <MealCard key={meal.id} meal={meal} canEdit={canEdit} currentUser={currentUser.key} onUpdate={(patch) => updateMeal(meal.id, patch)} onRemove={() => removeMeal(meal.id)} onToggle={() => toggleMeal(meal.id)} onSaveMeal={() => saveMealTemplate(meal)} />)}
-                </div>
+                <PlannerHeader plan={plan} canEdit={canEdit} onTitle={(title) => patchPlan((p) => ({ ...p, title }))} onLength={(length) => patchPlan((p) => ({ ...p, length }))} onSave={() => savePlan()} onDelete={deletePlan} onSaveFoodDay={() => saveDayPlan('food')} onSaveFullDay={() => saveDayPlan('full')} onSaveWeek={saveWeekPlan} onAddMeal={openCreateMealModal} />
+                <MealOverview meals={plan.meals} canEdit={canEdit} currentUser={currentUser.key} onToggle={toggleMeal} onEdit={openEditMealModal} onRemove={removeMeal} onSaveMeal={(meal) => saveMealTemplate(meal)} />
               </section>
               <aside className="space-y-5 2xl:sticky 2xl:top-5 2xl:self-start">
                 <ProgressPanel plan={plan} activities={ownerActivities} currentUser={currentUser.key} />
@@ -333,6 +346,34 @@ export default function HealthApp({ owner }: { owner: PlanOwner }) {
           {tab === 'bank' && <BankPanel meals={ownerSavedMeals} activities={ownerSavedActivities} dayPlans={ownerDayPlans} weekPlans={ownerWeekPlans} oldDayTemplates={ownerOldDayTemplates} addSavedMeal={(meal) => addMeal({ title: meal.title, time: meal.time, items: meal.items, notes: meal.notes })} updateSavedMeal={updateMealTemplate} addSavedActivity={(activity) => addActivity(activity)} useDayPlan={useDayPlan} applyWeekPlan={applyWeekPlan} deleteMeal={deleteMealTemplate} deleteSavedActivity={deleteSavedActivity} deleteDayPlan={deleteDayPlan} deleteWeekPlan={deleteWeekPlan} />}
 
           {tab === 'training' && <TrainingPanel activities={ownerActivities} canEdit={canEdit} currentUser={currentUser.key} draft={activityDraft} setDraft={setActivityDraft} addActivity={() => addActivity()} updateActivity={updateActivity} deleteActivity={deleteActivity} saveActivity={saveActivityTemplate} saveTrainingDay={() => saveDayPlan('training')} large />}
+
+          {mealModalMode === 'create' && (
+            <MealModal
+              title="Skapa måltid"
+              draft={mealDraft}
+              setDraft={setMealDraft}
+              canEdit={canEdit}
+              onClose={closeMealModal}
+              onSave={createMealFromDraft}
+            />
+          )}
+
+          {mealModalMode === 'edit' && editingMealId && (() => {
+            const editingMeal = plan.meals.find((meal) => meal.id === editingMealId);
+            if (!editingMeal) return null;
+            return (
+              <MealEditModal
+                meal={editingMeal}
+                canEdit={canEdit}
+                currentUser={currentUser.key}
+                onClose={closeMealModal}
+                onUpdate={(patch) => updateMeal(editingMeal.id, patch)}
+                onRemove={() => { removeMeal(editingMeal.id); closeMealModal(); }}
+                onToggle={() => toggleMeal(editingMeal.id)}
+                onSaveMeal={() => saveMealTemplate(editingMeal)}
+              />
+            );
+          })()}
         </section>
       </div>
     </main>
@@ -562,31 +603,93 @@ function PlannerHeader({ plan, canEdit, onTitle, onLength, onSave, onDelete, onS
   );
 }
 
-function MealComposer({ draft, setDraft, canEdit, onCreate }: { draft: { title: string; time: string; item: string; notes: string }; setDraft: (draft: { title: string; time: string; item: string; notes: string }) => void; canEdit: boolean; onCreate: () => void }) {
+function MealOverview({ meals, canEdit, currentUser, onToggle, onEdit, onRemove, onSaveMeal }: { meals: Meal[]; canEdit: boolean; currentUser: UserKey; onToggle: (mealId: string) => void; onEdit: (mealId: string) => void; onRemove: (mealId: string) => void; onSaveMeal: (meal: Meal) => void }) {
   return (
-    <section className="rounded-[2rem] border border-white/10 bg-white/[0.07] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.18)] backdrop-blur-2xl md:p-5">
+    <section className={`${card} p-5 md:p-6`}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow">Meal builder</p>
-          <h3 className="mt-2 text-3xl font-black tracking-[-0.07em] text-white">Skapa ny måltid</h3>
-          <p className="mt-1 text-sm font-semibold text-white/40">Sätt eget namn: förmiddagsmellis, kvällsmål, post-workout eller vad du vill.</p>
+          <p className="eyebrow">Today meals</p>
+          <h3 className="mt-2 text-4xl font-black tracking-[-0.08em] text-white">Måltidsöversikt</h3>
+          <p className="mt-2 text-sm font-semibold text-white/40">Kompakt vy. Klicka på pennan för att ändra namn, tid, innehåll och notes.</p>
         </div>
-        <button disabled={!canEdit} onClick={onCreate} className={greenButton}>+ Lägg till måltid</button>
+        <div className="rounded-full border border-white/10 bg-white/[0.07] px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-white/50">{meals.length} måltider</div>
       </div>
-      <div className="mt-5 grid gap-3 lg:grid-cols-[1.1fr_150px_1.2fr]">
-        <input disabled={!canEdit} className={darkInput} value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="Namn, t.ex. Förmiddags mellanmål" />
-        <input disabled={!canEdit} className={darkInput} value={draft.time} onChange={(event) => setDraft({ ...draft, time: event.target.value })} placeholder="Tid 10:30" />
-        <input disabled={!canEdit} className={darkInput} value={draft.item} onChange={(event) => setDraft({ ...draft, item: event.target.value })} onKeyDown={(event) => { if (event.key === 'Enter') onCreate(); }} placeholder="Första innehåll: ägg, potatis, biff" />
+      <div className="mt-5 space-y-3">
+        <Empty show={meals.length === 0} text="Ingen måltid skapad ännu. Tryck på + Måltid för att lägga in frukost, mellanmål, lunch eller kvällsmål." />
+        {meals.map((meal) => {
+          const done = Boolean(meal.completedBy[currentUser]);
+          return (
+            <article key={meal.id} className={`rounded-[1.6rem] border p-4 transition hover:-translate-y-0.5 ${done ? 'border-emerald-300/35 bg-emerald-300/15' : 'border-white/10 bg-white/[0.065]'}`}>
+              <div className="flex items-start gap-3">
+                <button
+                  disabled={!canEdit}
+                  onClick={() => onToggle(meal.id)}
+                  aria-label={done ? 'Markera som inte ätit' : 'Markera som ätit'}
+                  className={`mt-1 grid h-11 w-11 shrink-0 place-items-center rounded-[1rem] border text-lg font-black transition ${done ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-white/15 bg-black/20 text-transparent hover:border-emerald-300/60 hover:text-emerald-200'}`}
+                >
+                  ✓
+                </button>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="text-2xl font-black tracking-[-0.06em] text-white">{meal.title || 'Namnlös måltid'}</h4>
+                    {meal.time && <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white/50">{meal.time}</span>}
+                    {done && <span className="rounded-full bg-emerald-300 px-3 py-1 text-xs font-black text-slate-950">Ätit</span>}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {meal.items.length ? meal.items.map((item, index) => (
+                      <span key={`${item}-${index}`} className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs font-bold text-white/65">{item}</span>
+                    )) : <span className="rounded-full border border-dashed border-white/15 px-3 py-1.5 text-xs font-bold text-white/30">Ingen mat inlagd</span>}
+                  </div>
+                  {meal.notes && <p className="mt-3 line-clamp-2 text-sm font-semibold leading-6 text-white/40">{meal.notes}</p>}
+                </div>
+                <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                  <IconButton disabled={!canEdit} label="Redigera" onClick={() => onEdit(meal.id)}>✎</IconButton>
+                  <IconButton disabled={!canEdit || meal.items.length === 0} label="Spara måltid" onClick={() => onSaveMeal(meal)}>▣</IconButton>
+                  <IconButton disabled={!canEdit} label="Radera" danger onClick={() => onRemove(meal.id)}>×</IconButton>
+                </div>
+              </div>
+            </article>
+          );
+        })}
       </div>
-      <textarea disabled={!canEdit} className="mt-3 min-h-20 w-full resize-y rounded-[1.4rem] border border-white/10 bg-black/20 px-4 py-3 text-sm font-semibold leading-6 text-white/70 outline-none placeholder:text-white/25" value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} placeholder="Valfria anteckningar, mängder, macros eller instruktioner..." />
     </section>
   );
 }
 
-function MealCard({ meal, canEdit, currentUser, onUpdate, onRemove, onToggle, onSaveMeal }: { meal: Meal; canEdit: boolean; currentUser: UserKey; onUpdate: (patch: Partial<Meal>) => void; onRemove: () => void; onToggle: () => void; onSaveMeal: () => void }) {
+function IconButton({ children, label, onClick, disabled, danger }: { children: ReactNode; label: string; onClick: () => void; disabled?: boolean; danger?: boolean }) {
+  return (
+    <button
+      disabled={disabled}
+      title={label}
+      aria-label={label}
+      onClick={onClick}
+      className={`grid h-10 w-10 place-items-center rounded-2xl border text-sm font-black transition hover:-translate-y-0.5 disabled:opacity-35 ${danger ? 'border-rose-300/20 bg-rose-400/10 text-rose-100 hover:bg-rose-400/20' : 'border-white/10 bg-white/[0.07] text-white/60 hover:bg-white/[0.12] hover:text-white'}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function MealModal({ title, draft, setDraft, canEdit, onClose, onSave }: { title: string; draft: { title: string; time: string; item: string; notes: string }; setDraft: (draft: { title: string; time: string; item: string; notes: string }) => void; canEdit: boolean; onClose: () => void; onSave: () => void }) {
+  return (
+    <ModalFrame title={title} subtitle="Lägg in ett eget namn och skriv maten en och en, eller flera med kommatecken." onClose={onClose}>
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_160px]">
+        <input disabled={!canEdit} className={darkInput} value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="Namn, t.ex. Förmiddags mellanmål" />
+        <input disabled={!canEdit} className={darkInput} value={draft.time} onChange={(event) => setDraft({ ...draft, time: event.target.value })} placeholder="Tid 10:30" />
+      </div>
+      <input disabled={!canEdit} className={`${darkInput} mt-3`} value={draft.item} onChange={(event) => setDraft({ ...draft, item: event.target.value })} onKeyDown={(event) => { if (event.key === 'Enter') onSave(); }} placeholder="Mat: ägg, potatis, biff" />
+      <textarea disabled={!canEdit} className="mt-3 min-h-28 w-full resize-y rounded-[1.4rem] border border-white/10 bg-black/20 px-4 py-3 text-sm font-semibold leading-6 text-white/70 outline-none placeholder:text-white/25" value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} placeholder="Valfria anteckningar, mängder, macros eller instruktioner..." />
+      <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <button onClick={onClose} className={softDarkButton}>Stäng</button>
+        <button disabled={!canEdit || !draft.title.trim()} onClick={onSave} className={greenButton}>Lägg till måltid</button>
+      </div>
+    </ModalFrame>
+  );
+}
+
+function MealEditModal({ meal, canEdit, currentUser, onClose, onUpdate, onRemove, onToggle, onSaveMeal }: { meal: Meal; canEdit: boolean; currentUser: UserKey; onClose: () => void; onUpdate: (patch: Partial<Meal>) => void; onRemove: () => void; onToggle: () => void; onSaveMeal: () => void }) {
   const [newItem, setNewItem] = useState('');
   const done = Boolean(meal.completedBy[currentUser]);
-  const hasItems = meal.items.length > 0;
 
   function addItem() {
     const items = parseItems(newItem);
@@ -606,46 +709,58 @@ function MealCard({ meal, canEdit, currentUser, onUpdate, onRemove, onToggle, on
   }
 
   return (
-    <article className={`group relative overflow-hidden rounded-[2rem] border p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] backdrop-blur-2xl transition hover:-translate-y-1 ${done ? 'border-emerald-300/35 bg-emerald-300/15' : 'border-white/10 bg-white/[0.08]'}`}>
-      <div className="absolute right-0 top-0 h-32 w-32 translate-x-10 -translate-y-10 rounded-full bg-emerald-300/15 blur-2xl" />
-      <div className="relative flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <label className="text-[10px] font-black uppercase tracking-[0.24em] text-white/35">Namn på måltid</label>
-          <input disabled={!canEdit} className="mt-1 w-full border-0 bg-transparent text-3xl font-black tracking-[-0.07em] text-white outline-none placeholder:text-white/20" value={meal.title} onChange={(event) => onUpdate({ title: event.target.value })} placeholder="Förmiddags mellanmål" />
-          <input disabled={!canEdit} className="mt-3 w-36 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-xs font-black text-white/60 outline-none [color-scheme:dark]" value={meal.time || ''} onChange={(event) => onUpdate({ time: event.target.value })} placeholder="Tid, t.ex. 10:30" />
-        </div>
-        <button onClick={onToggle} className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-xl font-black transition ${done ? 'bg-emerald-300 text-slate-950' : 'bg-white/10 text-white/50 hover:bg-white/15 hover:text-white'}`}>{done ? '✓' : ''}</button>
+    <ModalFrame title="Redigera måltid" subtitle="Full CRUD på namn, tid, innehåll och anteckningar." onClose={onClose}>
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_160px]">
+        <input disabled={!canEdit} className={darkInput} value={meal.title} onChange={(event) => onUpdate({ title: event.target.value })} placeholder="Namn på måltid" />
+        <input disabled={!canEdit} className={darkInput} value={meal.time || ''} onChange={(event) => onUpdate({ time: event.target.value })} placeholder="Tid" />
       </div>
 
-      <div className="relative mt-5 rounded-[1.5rem] border border-white/10 bg-black/20 p-3">
+      <div className="mt-4 rounded-[1.5rem] border border-white/10 bg-black/20 p-3">
         <div className="flex flex-col gap-2 sm:flex-row">
           <input disabled={!canEdit} className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-white/25 focus:border-emerald-300/40" value={newItem} onChange={(event) => setNewItem(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') addItem(); }} placeholder="Lägg till mat: ägg, potatis, biff" />
           <button disabled={!canEdit} onClick={addItem} className={greenButton}>+ Mat</button>
         </div>
-        <p className="mt-2 text-xs font-semibold text-white/35">Du kan lägga en och en med Enter, eller skriva flera med kommatecken.</p>
+        <p className="mt-2 text-xs font-semibold text-white/35">Skriv en i taget eller flera med kommatecken.</p>
       </div>
 
-      {hasItems ? (
-        <ul className="mt-4 space-y-2">
-          {meal.items.map((item, index) => (
-            <li key={`${item}-${index}`} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.07] p-2">
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-300/15 text-xs font-black text-emerald-100">{index + 1}</span>
-              <input disabled={!canEdit} className="min-w-0 flex-1 border-0 bg-transparent px-2 py-2 text-sm font-bold text-white/80 outline-none" value={item} onChange={(event) => updateItem(index, event.target.value)} placeholder="Mat" />
-              <button disabled={!canEdit} onClick={() => removeItem(index)} className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white/10 text-sm font-black text-white/40 hover:bg-rose-400/15 hover:text-rose-200">×</button>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <div className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.04] px-4 py-5 text-sm font-bold text-white/35">Ingen mat inlagd ännu. Lägg till ägg, kaffe, biff, potatis osv ovan.</div>
-      )}
+      <div className="mt-4 space-y-2">
+        <Empty show={meal.items.length === 0} text="Ingen mat inlagd ännu." />
+        {meal.items.map((item, index) => (
+          <div key={`${item}-${index}`} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.07] p-2">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-300/15 text-xs font-black text-emerald-100">{index + 1}</span>
+            <input disabled={!canEdit} className="min-w-0 flex-1 border-0 bg-transparent px-2 py-2 text-sm font-bold text-white/80 outline-none" value={item} onChange={(event) => updateItem(index, event.target.value)} placeholder="Mat" />
+            <button disabled={!canEdit} onClick={() => removeItem(index)} className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white/10 text-sm font-black text-white/40 hover:bg-rose-400/15 hover:text-rose-200">×</button>
+          </div>
+        ))}
+      </div>
 
-      <textarea disabled={!canEdit} className="mt-4 min-h-20 w-full resize-y rounded-[1.4rem] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-semibold leading-6 text-white/70 outline-none placeholder:text-white/25" value={meal.notes || ''} onChange={(event) => onUpdate({ notes: event.target.value })} placeholder="Anteckningar, mängder, macros, känsla..." />
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
-        <button onClick={onToggle} className={done ? greenButton : softDarkButton}>{done ? 'Ätit' : 'Bocka av'}</button>
-        <button disabled={!canEdit || !hasItems} onClick={onSaveMeal} className={softDarkButton}>Spara måltid</button>
+      <textarea disabled={!canEdit} className="mt-4 min-h-24 w-full resize-y rounded-[1.4rem] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-semibold leading-6 text-white/70 outline-none placeholder:text-white/25" value={meal.notes || ''} onChange={(event) => onUpdate({ notes: event.target.value })} placeholder="Anteckningar, mängder, macros, känsla..." />
+
+      <div className="mt-5 grid gap-2 sm:grid-cols-4">
+        <button onClick={onToggle} className={done ? greenButton : softDarkButton}>{done ? '✓ Ätit' : 'Bocka av'}</button>
+        <button disabled={!canEdit || meal.items.length === 0} onClick={onSaveMeal} className={softDarkButton}>Spara till bank</button>
         <button disabled={!canEdit} onClick={onRemove} className={dangerButton}>Radera</button>
+        <button onClick={onClose} className={softDarkButton}>Klar</button>
       </div>
-    </article>
+    </ModalFrame>
+  );
+}
+
+function ModalFrame({ title, subtitle, children, onClose }: { title: string; subtitle: string; children: ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/75 p-3 backdrop-blur-xl" role="dialog" aria-modal="true">
+      <div className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-[2rem] border border-white/10 bg-slate-950 p-5 shadow-[0_40px_120px_rgba(0,0,0,0.55)] md:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="eyebrow">Meal editor</p>
+            <h3 className="mt-2 text-4xl font-black tracking-[-0.08em] text-white">{title}</h3>
+            <p className="mt-2 text-sm font-semibold leading-6 text-white/45">{subtitle}</p>
+          </div>
+          <button onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.07] text-xl font-black text-white/60 hover:bg-white/[0.12] hover:text-white">×</button>
+        </div>
+        <div className="mt-6">{children}</div>
+      </div>
+    </div>
   );
 }
 
@@ -700,13 +815,13 @@ function TrainingPanel({ activities, canEdit, currentUser, draft, setDraft, addA
 function CalendarPanel({ calendarMonth, setCalendarMonth, days, selectedDate, selectDate, weekPlans, applyWeekPlan, deleteWeekPlan }: { calendarMonth: string; setCalendarMonth: (date: string) => void; days: CalendarDay[]; selectedDate: string; selectDate: (date: string) => void; weekPlans: SavedWeekPlan[]; applyWeekPlan: (plan: SavedWeekPlan) => void; deleteWeekPlan: (id?: string) => void }) {
   const activeDay = days.find((day) => day.date === selectedDate);
   return (
-    <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_430px]">
-      <section className={`${card} p-5 md:p-6`}>
+    <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_390px]">
+      <section className={`${card} p-4 md:p-5`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="eyebrow">Calendar</p>
-            <h2 className="mt-2 text-5xl font-black capitalize tracking-[-0.08em] text-white">{monthLabel(calendarMonth)}</h2>
-            <p className="mt-2 text-sm font-semibold text-white/40">Klicka på datum för att öppna dagens plan.</p>
+            <h2 className="mt-2 text-4xl font-black capitalize tracking-[-0.08em] text-white md:text-5xl">{monthLabel(calendarMonth)}</h2>
+            <p className="mt-2 text-sm font-semibold text-white/40">Desktop: kompakt full view med datumrutor bredvid varandra.</p>
           </div>
           <div className="flex gap-2">
             <button className={softDarkButton} onClick={() => setCalendarMonth(prevMonth(calendarMonth))}>←</button>
@@ -714,20 +829,23 @@ function CalendarPanel({ calendarMonth, setCalendarMonth, days, selectedDate, se
             <button className={softDarkButton} onClick={() => setCalendarMonth(nextMonth(calendarMonth))}>→</button>
           </div>
         </div>
-        <div className="mt-7 grid grid-cols-7 gap-2">
-          {weekdays.map((day) => <p key={day} className="px-2 text-center text-xs font-black uppercase tracking-[0.2em] text-white/35">{day}</p>)}
+        <div className="mt-5 grid grid-cols-7 gap-1.5 md:gap-2">
+          {weekdays.map((day) => <p key={day} className="px-1 text-center text-[10px] font-black uppercase tracking-[0.16em] text-white/35 md:text-xs">{day}</p>)}
           {days.map((day) => {
             const active = day.date === selectedDate;
+            const total = day.totalMeals + day.totalActivities;
+            const done = day.completedMeals + day.completedActivities;
             return (
-              <button key={day.date} onClick={() => selectDate(day.date)} className={`group min-h-28 rounded-[1.35rem] border p-3 text-left transition hover:-translate-y-0.5 ${active ? 'border-emerald-300 bg-emerald-300 text-slate-950 shadow-xl shadow-emerald-950/20' : day.inMonth ? 'border-white/10 bg-white/[0.07] text-white hover:bg-white/[0.11]' : 'border-white/5 bg-white/[0.025] text-white/25'}`}>
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-2xl font-black tracking-[-0.07em]">{day.day}</p>
-                  {(day.hasMeals || day.hasActivities) && <span className={`h-2.5 w-2.5 rounded-full ${active ? 'bg-slate-950' : 'bg-emerald-300'}`} />}
+              <button key={day.date} onClick={() => selectDate(day.date)} className={`group min-h-[4.9rem] rounded-[1rem] border p-2 text-left transition hover:-translate-y-0.5 md:min-h-[6.1rem] md:rounded-[1.2rem] ${active ? 'border-emerald-300 bg-emerald-300 text-slate-950 shadow-xl shadow-emerald-950/20' : day.inMonth ? 'border-white/10 bg-white/[0.065] text-white hover:bg-white/[0.11]' : 'border-white/5 bg-white/[0.025] text-white/25'}`}>
+                <div className="flex items-center justify-between gap-1">
+                  <p className="text-lg font-black tracking-[-0.07em] md:text-2xl">{day.day}</p>
+                  {(day.hasMeals || day.hasActivities) && <span className={`h-2 w-2 rounded-full md:h-2.5 md:w-2.5 ${active ? 'bg-slate-950' : 'bg-emerald-300'}`} />}
                 </div>
-                <div className="mt-5 space-y-1.5">
-                  {day.hasMeals && <CalendarPill active={active} label={`Mat ${day.completedMeals}/${day.totalMeals}`} />}
-                  {day.hasActivities && <CalendarPill active={active} label={`Träning ${day.completedActivities}/${day.totalActivities}`} />}
+                <div className="mt-2 flex flex-wrap gap-1 md:mt-3">
+                  {day.hasMeals && <TinyCalendarPill active={active} label={`M ${day.completedMeals}/${day.totalMeals}`} />}
+                  {day.hasActivities && <TinyCalendarPill active={active} label={`T ${day.completedActivities}/${day.totalActivities}`} />}
                 </div>
+                {total > 0 && <div className={`mt-2 h-1 overflow-hidden rounded-full ${active ? 'bg-slate-950/15' : 'bg-white/10'}`}><span className={`block h-full rounded-full ${active ? 'bg-slate-950' : 'bg-emerald-300'}`} style={{ width: `${Math.max(8, progress(done, total))}%` }} /></div>}
               </button>
             );
           })}
@@ -751,6 +869,10 @@ function CalendarPanel({ calendarMonth, setCalendarMonth, days, selectedDate, se
       </aside>
     </div>
   );
+}
+
+function TinyCalendarPill({ label, active }: { label: string; active: boolean }) {
+  return <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-black md:px-2 md:py-1 md:text-[10px] ${active ? 'bg-slate-950/10 text-slate-800' : 'bg-white/10 text-white/50'}`}>{label}</span>;
 }
 
 function CalendarPill({ label, active }: { label: string; active: boolean }) {
