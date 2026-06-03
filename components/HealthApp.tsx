@@ -18,11 +18,13 @@ import type {
   WeekDayTemplate,
   AppUser,
   HealthGroup,
+  PublicSharedPlan,
+  LanguageCode,
 } from '@/lib/types';
 
 type LoginUser = AppUser & { id: string };
 type Toast = { id: number; text: string; type?: 'good' | 'bad' } | null;
-type Tab = 'today' | 'calendar' | 'bank' | 'training';
+type Tab = 'today' | 'calendar' | 'bank' | 'shared' | 'training';
 type CalendarDay = { date: string; inMonth: boolean; day: number; hasMeals: boolean; hasActivities: boolean; completedMeals: number; totalMeals: number; completedActivities: number; totalActivities: number };
 
 function getOwnerLabel(owner: PlanOwner, currentUser?: LoginUser | null, groups: HealthGroup[] = []) {
@@ -55,6 +57,17 @@ const softDarkButton = `${button} border border-white/10 bg-white/[0.07] text-wh
 const dangerButton = `${button} border border-rose-300/20 bg-rose-400/12 text-rose-100 hover:-translate-y-0.5 hover:bg-rose-400/20`;
 const miniButton = 'rounded-xl border px-3 py-2 text-xs font-black transition disabled:opacity-40';
 const card = 'rounded-[2rem] border border-white/10 bg-white/[0.08] shadow-[0_28px_100px_rgba(0,0,0,0.28)] backdrop-blur-2xl';
+
+const languageNames: Record<LanguageCode, string> = { sv: 'Svenska', en: 'English', fi: 'Suomi', es: 'Español', pt: 'Português', ja: '日本語', zh: '中文' };
+const uiText: Record<LanguageCode, { shared: string; today: string; calendar: string; bank: string; training: string; publish: string; copy: string; sharedSubtitle: string }> = {
+  sv: { shared: 'Delade planer', today: 'Dagens plan', calendar: 'Kalender', bank: 'Bank', training: 'Träning', publish: 'Publicera', copy: 'Kopiera', sharedSubtitle: 'Hitta inspiration från andra och kopiera en måltid, dagsplan eller veckoplan till din egen kalender.' },
+  en: { shared: 'Shared plans', today: 'Today', calendar: 'Calendar', bank: 'Bank', training: 'Training', publish: 'Publish', copy: 'Copy', sharedSubtitle: 'Find inspiration from others and copy a meal, day plan or week plan to your own calendar.' },
+  fi: { shared: 'Jaetut suunnitelmat', today: 'Tänään', calendar: 'Kalenteri', bank: 'Pankki', training: 'Treeni', publish: 'Julkaise', copy: 'Kopioi', sharedSubtitle: 'Löydä inspiraatiota muilta ja kopioi ateria, päivä- tai viikkosuunnitelma omaan kalenteriin.' },
+  es: { shared: 'Planes compartidos', today: 'Hoy', calendar: 'Calendario', bank: 'Banco', training: 'Entreno', publish: 'Publicar', copy: 'Copiar', sharedSubtitle: 'Encuentra inspiración de otros y copia una comida, día o semana a tu calendario.' },
+  pt: { shared: 'Planos partilhados', today: 'Hoje', calendar: 'Calendário', bank: 'Banco', training: 'Treino', publish: 'Publicar', copy: 'Copiar', sharedSubtitle: 'Encontra inspiração e copia uma refeição, dia ou semana para o teu calendário.' },
+  ja: { shared: '共有プラン', today: '今日', calendar: 'カレンダー', bank: 'バンク', training: 'トレーニング', publish: '公開', copy: 'コピー', sharedSubtitle: '他の人のプランを見て、食事・1日・1週間プランを自分のカレンダーにコピーできます。' },
+  zh: { shared: '共享计划', today: '今天', calendar: '日历', bank: '资料库', training: '训练', publish: '发布', copy: '复制', sharedSubtitle: '从他人的计划获得灵感，并复制餐食、日计划或周计划到自己的日历。' },
+};
 
 function today() { return new Date().toISOString().slice(0, 10); }
 function uid() { return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`; }
@@ -111,6 +124,8 @@ export default function HealthApp() {
   const [savedActivities, setSavedActivities] = useState<SavedActivity[]>([]);
   const [dayPlans, setDayPlans] = useState<SavedDayPlan[]>([]);
   const [weekPlans, setWeekPlans] = useState<SavedWeekPlan[]>([]);
+  const [publicPlans, setPublicPlans] = useState<PublicSharedPlan[]>([]);
+  const [language, setLanguage] = useState<LanguageCode>('en');
   const [activityDraft, setActivityDraft] = useState({ title: '', time: '', comment: '' });
   const [mealDraft, setMealDraft] = useState({ title: '', time: '', item: '', notes: '' });
   const [mealModalMode, setMealModalMode] = useState<'create' | 'edit' | null>(null);
@@ -148,10 +163,11 @@ export default function HealthApp() {
   const ownerOldDayTemplates = oldDayTemplates.filter((template) => template.owner === owner);
   const selectedWeek = weekDates(selectedDate);
   const calendarDays = useMemo(() => buildCalendarDays(calendarMonth, calendarPlans.filter((p) => p.owner === owner), calendarActivities.filter((a) => a.owner === owner), currentUser?.key || 'robert'), [calendarMonth, calendarPlans, calendarActivities, owner, currentUser]);
+  const t = uiText[language];
 
   async function refreshData() {
     const { start, end } = calendarRange(calendarMonth);
-    const [plansRes, calendarPlansRes, activitiesRes, calendarActivitiesRes, oldTemplatesRes, mealsRes, savedActivitiesRes, dayPlansRes, weekPlansRes] = await Promise.all([
+    const [plansRes, calendarPlansRes, activitiesRes, calendarActivitiesRes, oldTemplatesRes, mealsRes, savedActivitiesRes, dayPlansRes, weekPlansRes, publicPlansRes] = await Promise.all([
       fetch(`/api/plans?date=${selectedDate}`),
       fetch(`/api/plans?start=${start}&end=${end}`),
       fetch(`/api/activities?date=${selectedDate}`),
@@ -161,9 +177,10 @@ export default function HealthApp() {
       fetch('/api/saved-activities'),
       fetch('/api/day-plans'),
       fetch('/api/week-plans'),
+      fetch('/api/shared-plans'),
     ]);
-    const [plansData, calendarPlansData, activitiesData, calendarActivitiesData, oldTemplatesData, mealsData, savedActivitiesData, dayPlansData, weekPlansData] = await Promise.all([
-      plansRes.json(), calendarPlansRes.json(), activitiesRes.json(), calendarActivitiesRes.json(), oldTemplatesRes.json(), mealsRes.json(), savedActivitiesRes.json(), dayPlansRes.json(), weekPlansRes.json(),
+    const [plansData, calendarPlansData, activitiesData, calendarActivitiesData, oldTemplatesData, mealsData, savedActivitiesData, dayPlansData, weekPlansData, publicPlansData] = await Promise.all([
+      plansRes.json(), calendarPlansRes.json(), activitiesRes.json(), calendarActivitiesRes.json(), oldTemplatesRes.json(), mealsRes.json(), savedActivitiesRes.json(), dayPlansRes.json(), weekPlansRes.json(), publicPlansRes.json(),
     ]);
     setPlans(plansData.plans || []);
     setCalendarPlans(calendarPlansData.plans || []);
@@ -174,6 +191,7 @@ export default function HealthApp() {
     setSavedActivities(savedActivitiesData.activities || []);
     setDayPlans(dayPlansData.dayPlans || []);
     setWeekPlans(weekPlansData.weekPlans || []);
+    setPublicPlans(publicPlansData.plans || []);
   }
 
   function showToast(text: string, type: 'good' | 'bad' = 'good') {
@@ -356,6 +374,65 @@ export default function HealthApp() {
   }
   async function deleteWeekPlan(id?: string) { if (!id) return; await fetch(`/api/week-plans/${id}`, { method: 'DELETE' }); await refreshData(); showToast('Veckoplanen är borttagen.'); }
 
+
+  async function publishSharedPlan(payload: Partial<PublicSharedPlan>) {
+    if (!currentUser) return;
+    const description = window.prompt('Kort beskrivning som andra ser?', payload.description || '') || '';
+    const tagsText = window.prompt('Tags, separera med kommatecken. Ex: fat loss, protein, family', Array.isArray(payload.tags) ? payload.tags.join(', ') : '') || '';
+    const response = await fetch('/api/shared-plans', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, description, tags: parseItems(tagsText), language, sourceOwner: owner }),
+    });
+    if (!response.ok) return showToast('Kunde inte publicera planen.', 'bad');
+    await refreshData();
+    setTab('shared');
+    showToast('Planen är publicerad i Delade planer.');
+  }
+
+  function publishMeal(meal: SavedMeal) {
+    void publishSharedPlan({ type: 'meal', title: meal.title, meals: [{ id: uid(), title: meal.title, time: meal.time, items: meal.items, notes: meal.notes, completedBy: {} }] });
+  }
+
+  function publishDay(dayPlan: SavedDayPlan) {
+    void publishSharedPlan({ type: dayPlan.kind === 'training' ? 'training' : 'day', title: dayPlan.title, dayPlan });
+  }
+
+  function publishWeek(weekPlan: SavedWeekPlan) {
+    void publishSharedPlan({ type: 'week', title: weekPlan.title, description: weekPlan.description || '', weekPlan });
+  }
+
+  async function copySharedPlan(sharedPlan: PublicSharedPlan) {
+    if (!currentUser) return;
+    if (sharedPlan._id) void fetch(`/api/shared-plans/${sharedPlan._id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'copy' }) });
+
+    if (sharedPlan.type === 'meal' && sharedPlan.meals?.[0]) {
+      const meal = cleanMeal({ ...sharedPlan.meals[0], id: uid(), completedBy: {} });
+      const nextPlan = { ...plan, meals: [...plan.meals, meal] };
+      patchPlan(() => nextPlan);
+      await savePlan(nextPlan);
+      setTab('today');
+      showToast('Måltiden är kopierad till dagens plan.');
+      return;
+    }
+
+    if ((sharedPlan.type === 'day' || sharedPlan.type === 'training') && sharedPlan.dayPlan) {
+      await useDayPlan({ ...sharedPlan.dayPlan, owner });
+      setTab('today');
+      showToast('Dagsplanen är kopierad till valt datum.');
+      return;
+    }
+
+    if (sharedPlan.type === 'week' && sharedPlan.weekPlan) {
+      await applyWeekPlan({ ...sharedPlan.weekPlan, owner });
+      setTab('calendar');
+      showToast('Veckoplanen är kopierad till vald vecka.');
+      return;
+    }
+
+    showToast('Den här delade planen saknar data att kopiera.', 'bad');
+  }
+
   if (!authChecked) return <main className="min-h-screen bg-[#07080c] text-white"><Background /><div className="relative z-10 grid min-h-screen place-items-center"><p className="rounded-3xl border border-white/10 bg-white/10 px-6 py-4 font-black">Laddar...</p></div></main>;
   if (!currentUser) return <LoginScreen mode={authMode} setMode={setAuthMode} draft={authDraft} setDraft={setAuthDraft} submit={submitAuth} loginError={loginError} />;
 
@@ -363,10 +440,10 @@ export default function HealthApp() {
     <main className="min-h-screen overflow-hidden text-white">
       <Background />
       <div className="relative z-10 mx-auto grid max-w-[1760px] gap-5 p-3 md:p-5 xl:grid-cols-[300px_minmax(0,1fr)]">
-        <Sidebar owner={owner} currentUser={currentUser} groups={groups} activeOwner={owner} setActiveOwner={setActiveOwner} groupDraft={groupDraft} setGroupDraft={setGroupDraft} createGroup={createGroup} inviteToActiveGroup={inviteToActiveGroup} logout={logout} />
+        <Sidebar owner={owner} currentUser={currentUser} groups={groups} activeOwner={owner} setActiveOwner={setActiveOwner} groupDraft={groupDraft} setGroupDraft={setGroupDraft} createGroup={createGroup} inviteToActiveGroup={inviteToActiveGroup} logout={logout} language={language} setLanguage={setLanguage} />
         <section className="min-w-0 space-y-5">
           <Hero owner={owner} groups={groups} currentUser={currentUser} selectedDate={selectedDate} setSelectedDate={(date) => { setSelectedDate(date); setCalendarMonth(monthStart(date)); }} plan={plan} activities={ownerActivities} />
-          <TabBar tab={tab} setTab={setTab} />
+          <TabBar tab={tab} setTab={setTab} t={t} />
           {toast && <ToastCard toast={toast} />}
           {isBusy && <div className="rounded-3xl border border-slate-200 bg-white/80 px-5 py-4 text-sm font-black text-slate-500">Laddar...</div>}
 
@@ -386,7 +463,9 @@ export default function HealthApp() {
 
           {tab === 'calendar' && <CalendarPanel calendarMonth={calendarMonth} setCalendarMonth={setCalendarMonth} days={calendarDays} selectedDate={selectedDate} selectDate={(date) => { setSelectedDate(date); setTab('today'); }} weekPlans={ownerWeekPlans} applyWeekPlan={applyWeekPlan} deleteWeekPlan={deleteWeekPlan} />}
 
-          {tab === 'bank' && <BankPanel meals={ownerSavedMeals} activities={ownerSavedActivities} dayPlans={ownerDayPlans} weekPlans={ownerWeekPlans} oldDayTemplates={ownerOldDayTemplates} addSavedMeal={(meal) => addMeal({ title: meal.title, time: meal.time, items: meal.items, notes: meal.notes })} updateSavedMeal={updateMealTemplate} addSavedActivity={(activity) => addActivity(activity)} useDayPlan={useDayPlan} applyWeekPlan={applyWeekPlan} deleteMeal={deleteMealTemplate} deleteSavedActivity={deleteSavedActivity} deleteDayPlan={deleteDayPlan} deleteWeekPlan={deleteWeekPlan} />}
+          {tab === 'bank' && <BankPanel meals={ownerSavedMeals} activities={ownerSavedActivities} dayPlans={ownerDayPlans} weekPlans={ownerWeekPlans} oldDayTemplates={ownerOldDayTemplates} addSavedMeal={(meal) => addMeal({ title: meal.title, time: meal.time, items: meal.items, notes: meal.notes })} updateSavedMeal={updateMealTemplate} addSavedActivity={(activity) => addActivity(activity)} useDayPlan={useDayPlan} applyWeekPlan={applyWeekPlan} deleteMeal={deleteMealTemplate} deleteSavedActivity={deleteSavedActivity} deleteDayPlan={deleteDayPlan} deleteWeekPlan={deleteWeekPlan} publishMeal={publishMeal} publishDay={publishDay} publishWeek={publishWeek} t={t} />}
+
+          {tab === 'shared' && <SharedPlansPanel plans={publicPlans} currentUser={currentUser} selectedDate={selectedDate} copyPlan={copySharedPlan} deletePlan={async (id) => { if (!id) return; await fetch(`/api/shared-plans/${id}`, { method: 'DELETE' }); await refreshData(); showToast('Delad plan är borttagen.'); }} t={t} />}
 
           {tab === 'training' && <TrainingPanel activities={ownerActivities} canEdit={canEdit} currentUser={currentUser.key} draft={activityDraft} setDraft={setActivityDraft} addActivity={() => addActivity()} updateActivity={updateActivity} deleteActivity={deleteActivity} saveActivity={saveActivityTemplate} saveTrainingDay={() => saveDayPlan('training')} large />}
 
@@ -498,7 +577,7 @@ function LoginScreen({ mode, setMode, draft, setDraft, submit, loginError }: { m
   );
 }
 
-function Sidebar({ owner, currentUser, groups, activeOwner, setActiveOwner, groupDraft, setGroupDraft, createGroup, inviteToActiveGroup, logout }: { owner: PlanOwner; currentUser: LoginUser; groups: HealthGroup[]; activeOwner: PlanOwner; setActiveOwner: (owner: PlanOwner) => void; groupDraft: { name: string; description: string; inviteEmail: string }; setGroupDraft: (draft: { name: string; description: string; inviteEmail: string }) => void; createGroup: () => void; inviteToActiveGroup: () => void; logout: () => void }) {
+function Sidebar({ owner, currentUser, groups, activeOwner, setActiveOwner, groupDraft, setGroupDraft, createGroup, inviteToActiveGroup, logout, language, setLanguage }: { owner: PlanOwner; currentUser: LoginUser; groups: HealthGroup[]; activeOwner: PlanOwner; setActiveOwner: (owner: PlanOwner) => void; groupDraft: { name: string; description: string; inviteEmail: string }; setGroupDraft: (draft: { name: string; description: string; inviteEmail: string }) => void; createGroup: () => void; inviteToActiveGroup: () => void; logout: () => void; language: LanguageCode; setLanguage: (language: LanguageCode) => void }) {
   const selectedGroup = groups.find((group) => `group:${group._id}` === activeOwner);
   return (
     <aside className="xl:sticky xl:top-5">
@@ -533,6 +612,13 @@ function Sidebar({ owner, currentUser, groups, activeOwner, setActiveOwner, grou
             <input className={`${darkInput} mt-2 py-2`} value={groupDraft.inviteEmail} onChange={(event) => setGroupDraft({ ...groupDraft, inviteEmail: event.target.value })} placeholder="vän@email.se" />
             <button onClick={inviteToActiveGroup} className={`${greenButton} mt-2 w-full py-2`}>Bjud in</button>
           </div>}
+        </div>
+
+        <div className="mt-3 rounded-[1.65rem] border border-white/10 bg-white/[0.06] p-3">
+          <p className="px-2 text-xs font-black uppercase tracking-[0.22em] text-white/35">Language</p>
+          <select className={`${darkInput} mt-3 py-2`} value={language} onChange={(event) => setLanguage(event.target.value as LanguageCode)}>
+            {(Object.keys(languageNames) as LanguageCode[]).map((code) => <option key={code} value={code}>{languageNames[code]}</option>)}
+          </select>
         </div>
         <button onClick={logout} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 text-sm font-black text-white/70 transition hover:bg-white/[0.12] hover:text-white">Logga ut</button>
       </div>
@@ -592,16 +678,17 @@ function MetricCard({ title, value, note, tone }: { title: string; value: string
   );
 }
 
-function TabBar({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
+function TabBar({ tab, setTab, t }: { tab: Tab; setTab: (tab: Tab) => void; t: (typeof uiText)[LanguageCode] }) {
   const tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: 'today', label: 'Dagens plan', icon: '☑' },
-    { id: 'calendar', label: 'Kalender', icon: '◷' },
-    { id: 'bank', label: 'Bank', icon: '▣' },
-    { id: 'training', label: 'Träning', icon: '↗' },
+    { id: 'today', label: t.today, icon: '☑' },
+    { id: 'calendar', label: t.calendar, icon: '◷' },
+    { id: 'bank', label: t.bank, icon: '▣' },
+    { id: 'shared', label: t.shared, icon: '◎' },
+    { id: 'training', label: t.training, icon: '↗' },
   ];
   return (
     <div className="sticky top-3 z-20 rounded-[1.7rem] border border-white/10 bg-black/30 p-2 shadow-[0_20px_80px_rgba(0,0,0,0.28)] backdrop-blur-2xl">
-      <div className="grid gap-2 md:grid-cols-4">
+      <div className="grid gap-2 md:grid-cols-5">
         {tabs.map((item) => (
           <button key={item.id} onClick={() => setTab(item.id)} className={`flex items-center justify-center gap-2 rounded-[1.25rem] px-4 py-3 text-sm font-black transition ${tab === item.id ? 'bg-white text-slate-950 shadow-xl' : 'text-white/50 hover:bg-white/[0.08] hover:text-white'}`}>
             <span>{item.icon}</span>{item.label}
@@ -935,22 +1022,22 @@ function CalendarPill({ label, active }: { label: string; active: boolean }) {
   return <span className={`block rounded-full px-2 py-1 text-[10px] font-black ${active ? 'bg-slate-950/10 text-slate-800' : 'bg-white/10 text-white/50'}`}>{label}</span>;
 }
 
-function BankPanel({ meals, activities, dayPlans, weekPlans, oldDayTemplates, addSavedMeal, updateSavedMeal, addSavedActivity, useDayPlan, applyWeekPlan, deleteMeal, deleteSavedActivity, deleteDayPlan, deleteWeekPlan }: { meals: SavedMeal[]; activities: SavedActivity[]; dayPlans: SavedDayPlan[]; weekPlans: SavedWeekPlan[]; oldDayTemplates: SavedMealPlan[]; addSavedMeal: (meal: SavedMeal) => void; updateSavedMeal: (meal: SavedMeal, patch: Partial<SavedMeal>) => void; addSavedActivity: (activity: SavedActivity) => void; useDayPlan: (plan: SavedDayPlan) => void; applyWeekPlan: (plan: SavedWeekPlan) => void; deleteMeal: (id?: string) => void; deleteSavedActivity: (id?: string) => void; deleteDayPlan: (id?: string) => void; deleteWeekPlan: (id?: string) => void }) {
+function BankPanel({ meals, activities, dayPlans, weekPlans, oldDayTemplates, addSavedMeal, updateSavedMeal, addSavedActivity, useDayPlan, applyWeekPlan, deleteMeal, deleteSavedActivity, deleteDayPlan, deleteWeekPlan, publishMeal, publishDay, publishWeek, t }: { meals: SavedMeal[]; activities: SavedActivity[]; dayPlans: SavedDayPlan[]; weekPlans: SavedWeekPlan[]; oldDayTemplates: SavedMealPlan[]; addSavedMeal: (meal: SavedMeal) => void; updateSavedMeal: (meal: SavedMeal, patch: Partial<SavedMeal>) => void; addSavedActivity: (activity: SavedActivity) => void; useDayPlan: (plan: SavedDayPlan) => void; applyWeekPlan: (plan: SavedWeekPlan) => void; deleteMeal: (id?: string) => void; deleteSavedActivity: (id?: string) => void; deleteDayPlan: (id?: string) => void; deleteWeekPlan: (id?: string) => void; publishMeal: (meal: SavedMeal) => void; publishDay: (plan: SavedDayPlan) => void; publishWeek: (plan: SavedWeekPlan) => void; t: (typeof uiText)[LanguageCode] }) {
   return (
     <section className={`${card} p-5 md:p-6`}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="eyebrow">Bank</p>
           <h2 className="mt-2 text-5xl font-black tracking-[-0.08em] text-white">Sparat bibliotek</h2>
-          <p className="mt-2 text-sm font-semibold text-white/40">Återanvänd måltider, aktiviteter, dagar och hela veckor.</p>
+          <p className="mt-2 text-sm font-semibold text-white/40">Återanvänd privat, dela i grupp eller publicera som inspiration.</p>
         </div>
         <div className="rounded-full border border-white/10 bg-white/[0.07] px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-white/50">{meals.length + activities.length + dayPlans.length + weekPlans.length} mallar</div>
       </div>
       <div className="mt-7 grid gap-5 xl:grid-cols-2 2xl:grid-cols-4">
-        <BankColumn title="Måltider" icon="🍳"><Empty show={meals.length === 0} text="Spara en måltid från ett måltidskort." />{meals.map((meal) => <SavedMealCard key={meal._id || meal.title} meal={meal} onUse={() => addSavedMeal(meal)} onUpdate={(patch) => updateSavedMeal(meal, patch)} onDelete={() => deleteMeal(meal._id)} />)}</BankColumn>
+        <BankColumn title="Måltider" icon="🍳"><Empty show={meals.length === 0} text="Spara en måltid från ett måltidskort." />{meals.map((meal) => <SavedMealCard key={meal._id || meal.title} meal={meal} onUse={() => addSavedMeal(meal)} onUpdate={(patch) => updateSavedMeal(meal, patch)} onDelete={() => deleteMeal(meal._id)} onPublish={() => publishMeal(meal)} publishLabel={t.publish} />)}</BankColumn>
         <BankColumn title="Aktiviteter" icon="⚡"><Empty show={activities.length === 0} text="Spara en aktivitet från träningskortet." />{activities.map((activity) => <MiniCard key={activity._id || activity.title} title={activity.title} meta={activity.time || 'Ingen tid'} onUse={() => addSavedActivity(activity)} onDelete={() => deleteSavedActivity(activity._id)} />)}</BankColumn>
-        <BankColumn title="Dagsplaner" icon="☑"><Empty show={dayPlans.length === 0 && oldDayTemplates.length === 0} text="Spara matdag, träningsdag eller full dagsplan." />{dayPlans.map((plan) => <MiniCard key={plan._id || plan.title} title={plan.title} meta={`${kindLabel[plan.kind]} · ${plan.meals.length} måltider · ${plan.activities.length} aktiviteter`} onUse={() => useDayPlan(plan)} onDelete={() => deleteDayPlan(plan._id)} />)}{oldDayTemplates.map((template) => <MiniCard key={template._id || template.title} title={template.title} meta={`Gammal mall · ${template.meals.length} måltider`} onUse={() => useDayPlan({ owner: template.owner, title: template.title, kind: 'food', meals: template.meals, activities: [], createdBy: template.createdBy })} />)}</BankColumn>
-        <BankColumn title="Veckoplaner" icon="◷"><Empty show={weekPlans.length === 0} text="Spara hela veckan från Dagens plan." />{weekPlans.map((plan) => <MiniCard key={plan._id || plan.title} title={plan.title} meta={`${plan.days.length} dagar`} onUse={() => applyWeekPlan(plan)} onDelete={() => deleteWeekPlan(plan._id)} />)}</BankColumn>
+        <BankColumn title="Dagsplaner" icon="☑"><Empty show={dayPlans.length === 0 && oldDayTemplates.length === 0} text="Spara matdag, träningsdag eller full dagsplan." />{dayPlans.map((plan) => <MiniCard key={plan._id || plan.title} title={plan.title} meta={`${kindLabel[plan.kind]} · ${plan.meals.length} måltider · ${plan.activities.length} aktiviteter`} onUse={() => useDayPlan(plan)} onDelete={() => deleteDayPlan(plan._id)} onPublish={() => publishDay(plan)} publishLabel={t.publish} />)}{oldDayTemplates.map((template) => <MiniCard key={template._id || template.title} title={template.title} meta={`Gammal mall · ${template.meals.length} måltider`} onUse={() => useDayPlan({ owner: template.owner, title: template.title, kind: 'food', meals: template.meals, activities: [], createdBy: template.createdBy })} />)}</BankColumn>
+        <BankColumn title="Veckoplaner" icon="◷"><Empty show={weekPlans.length === 0} text="Spara hela veckan från Dagens plan." />{weekPlans.map((plan) => <MiniCard key={plan._id || plan.title} title={plan.title} meta={`${plan.days.length} dagar`} onUse={() => applyWeekPlan(plan)} onDelete={() => deleteWeekPlan(plan._id)} onPublish={() => publishWeek(plan)} publishLabel={t.publish} />)}</BankColumn>
       </div>
     </section>
   );
@@ -968,7 +1055,7 @@ function BankColumn({ title, icon, children }: { title: string; icon: string; ch
   );
 }
 
-function SavedMealCard({ meal, onUse, onUpdate, onDelete }: { meal: SavedMeal; onUse: () => void; onUpdate: (patch: Partial<SavedMeal>) => void; onDelete: () => void }) {
+function SavedMealCard({ meal, onUse, onUpdate, onDelete, onPublish, publishLabel = 'Publicera' }: { meal: SavedMeal; onUse: () => void; onUpdate: (patch: Partial<SavedMeal>) => void; onDelete: () => void; onPublish?: () => void; publishLabel?: string }) {
   const [newItem, setNewItem] = useState('');
 
   function addItem() {
@@ -1013,12 +1100,12 @@ function SavedMealCard({ meal, onUse, onUpdate, onDelete }: { meal: SavedMeal; o
       </div>
 
       <textarea className="mt-3 min-h-16 w-full resize-y rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-white/60 outline-none placeholder:text-white/25" value={meal.notes || ''} onChange={(event) => onUpdate({ notes: event.target.value })} placeholder="Anteckningar" />
-      <button onClick={onUse} className={`${miniButton} mt-3 w-full border-white/10 bg-white/10 text-white/70 hover:bg-white/15 hover:text-white`}>Använd / lägg in</button>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2"><button onClick={onUse} className={`${miniButton} w-full border-white/10 bg-white/10 text-white/70 hover:bg-white/15 hover:text-white`}>Använd / lägg in</button>{onPublish && <button onClick={onPublish} className={`${miniButton} w-full border-emerald-300/20 bg-emerald-300/15 text-emerald-100 hover:bg-emerald-300/25`}>{publishLabel}</button>}</div>
     </article>
   );
 }
 
-function MiniCard({ title, meta, onUse, onDelete }: { title: string; meta: string; onUse: () => void; onDelete?: () => void }) {
+function MiniCard({ title, meta, onUse, onDelete, onPublish, publishLabel = 'Publicera' }: { title: string; meta: string; onUse: () => void; onDelete?: () => void; onPublish?: () => void; publishLabel?: string }) {
   return (
     <article className="rounded-[1.4rem] border border-white/10 bg-white/[0.07] p-4 shadow-xl">
       <div className="flex items-start justify-between gap-3">
@@ -1028,10 +1115,84 @@ function MiniCard({ title, meta, onUse, onDelete }: { title: string; meta: strin
         </div>
         {onDelete && <button onClick={onDelete} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/10 text-sm font-black text-white/40 hover:bg-rose-400/15 hover:text-rose-200">×</button>}
       </div>
-      <button onClick={onUse} className={`${miniButton} mt-3 w-full border-white/10 bg-white/10 text-white/70 hover:bg-white/15 hover:text-white`}>Använd / lägg in</button>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2"><button onClick={onUse} className={`${miniButton} w-full border-white/10 bg-white/10 text-white/70 hover:bg-white/15 hover:text-white`}>Använd / lägg in</button>{onPublish && <button onClick={onPublish} className={`${miniButton} w-full border-emerald-300/20 bg-emerald-300/15 text-emerald-100 hover:bg-emerald-300/25`}>{publishLabel}</button>}</div>
     </article>
   );
 }
+
+function SharedPlansPanel({ plans, currentUser, selectedDate, copyPlan, deletePlan, t }: { plans: PublicSharedPlan[]; currentUser: LoginUser; selectedDate: string; copyPlan: (plan: PublicSharedPlan) => void; deletePlan: (id?: string) => void; t: (typeof uiText)[LanguageCode] }) {
+  const [filter, setFilter] = useState<'all' | PublicSharedPlan['type']>('all');
+  const visiblePlans = filter === 'all' ? plans : plans.filter((plan) => plan.type === filter);
+  const filters: { id: 'all' | PublicSharedPlan['type']; label: string }[] = [
+    { id: 'all', label: 'All' },
+    { id: 'meal', label: 'Meals' },
+    { id: 'day', label: 'Day plans' },
+    { id: 'week', label: 'Week plans' },
+    { id: 'training', label: 'Training' },
+  ];
+
+  return (
+    <section className={`${card} p-5 md:p-6`}>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow">Community</p>
+          <h2 className="mt-2 text-4xl font-black tracking-[-0.08em] text-white md:text-6xl">{t.shared}</h2>
+          <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/45">{t.sharedSubtitle}</p>
+          <p className="mt-2 text-xs font-bold text-emerald-100/60">Kopieras till: {formatDate(selectedDate)} · {currentUser.name}</p>
+        </div>
+        <div className="rounded-full border border-white/10 bg-white/[0.07] px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-white/50">{plans.length} public</div>
+      </div>
+
+      <div className="mt-6 flex gap-2 overflow-x-auto pb-1">
+        {filters.map((item) => (
+          <button key={item.id} onClick={() => setFilter(item.id)} className={`shrink-0 rounded-2xl px-4 py-2 text-xs font-black uppercase tracking-[0.16em] transition ${filter === item.id ? 'bg-white text-slate-950' : 'border border-white/10 bg-white/[0.06] text-white/50 hover:bg-white/[0.1] hover:text-white'}`}>{item.label}</button>
+        ))}
+      </div>
+
+      <div className="mt-7 grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+        <Empty show={visiblePlans.length === 0} text="Inga publicerade planer än. Publicera från din Bank så dyker de upp här." />
+        {visiblePlans.map((plan) => <SharedPlanCard key={plan._id || plan.title} plan={plan} currentUser={currentUser} copyPlan={copyPlan} deletePlan={deletePlan} t={t} />)}
+      </div>
+    </section>
+  );
+}
+
+function SharedPlanCard({ plan, currentUser, copyPlan, deletePlan, t }: { plan: PublicSharedPlan; currentUser: LoginUser; copyPlan: (plan: PublicSharedPlan) => void; deletePlan: (id?: string) => void; t: (typeof uiText)[LanguageCode] }) {
+  const canDelete = currentUser.role === 'admin' || plan.publishedBy === currentUser.key;
+  const mealCount = plan.type === 'meal' ? (plan.meals?.[0]?.items.length || 0) : plan.dayPlan ? plan.dayPlan.meals.length : plan.weekPlan ? plan.weekPlan.days.reduce((sum, day) => sum + day.meals.length, 0) : 0;
+  const activityCount = plan.dayPlan ? plan.dayPlan.activities.length : plan.weekPlan ? plan.weekPlan.days.reduce((sum, day) => sum + day.activities.length, 0) : 0;
+  const typeLabel = plan.type === 'meal' ? 'Meal' : plan.type === 'week' ? 'Week plan' : plan.type === 'training' ? 'Training' : 'Day plan';
+
+  return (
+    <article className="group overflow-hidden rounded-[1.8rem] border border-white/10 bg-white/[0.07] p-4 shadow-2xl transition hover:-translate-y-1 hover:bg-white/[0.1] md:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full bg-emerald-300/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-100">{typeLabel}</span>
+            <span className="rounded-full bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/45">{languageNames[plan.language || 'en']}</span>
+          </div>
+          <h3 className="mt-4 text-2xl font-black tracking-[-0.07em] text-white md:text-3xl">{plan.title}</h3>
+          <p className="mt-2 line-clamp-3 text-sm font-semibold leading-6 text-white/45">{plan.description || 'No description yet.'}</p>
+        </div>
+        {canDelete && <button onClick={() => deletePlan(plan._id)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/10 text-sm font-black text-white/35 hover:bg-rose-400/15 hover:text-rose-100">×</button>}
+      </div>
+
+      <div className="mt-5 grid grid-cols-3 gap-2">
+        <DarkStat label="Food" value={String(mealCount)} />
+        <DarkStat label="Training" value={String(activityCount)} />
+        <DarkStat label="Copies" value={String(plan.copies || 0)} />
+      </div>
+
+      {Array.isArray(plan.tags) && plan.tags.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{plan.tags.map((tag) => <span key={tag} className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white/40">#{tag}</span>)}</div>}
+
+      <div className="mt-5 flex items-center justify-between gap-3">
+        <p className="min-w-0 truncate text-xs font-bold text-white/35">By {plan.publishedByName || 'Health user'}</p>
+        <button onClick={() => copyPlan(plan)} className={`${greenButton} shrink-0 py-2`}>{t.copy}</button>
+      </div>
+    </article>
+  );
+}
+
 
 function ProgressPanel({ plan, activities, currentUser }: { plan: MealPlan; activities: Activity[]; currentUser: UserKey }) {
   const foodProgress = progress(completedMeals(plan, currentUser), mealTotal(plan));

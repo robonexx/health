@@ -3,12 +3,18 @@ export type PlanOwner = string;
 export type PlanLength = 'day' | 'week' | 'ongoing';
 export type DayPlanKind = 'food' | 'training' | 'full';
 
+export type UserRole = 'user' | 'admin';
+export type LanguageCode = 'sv' | 'en' | 'fi' | 'es' | 'pt' | 'ja' | 'zh';
+export type SharedPlanType = 'meal' | 'day' | 'week' | 'month' | 'training';
+export type SharedVisibility = 'private' | 'group' | 'public';
+
 export type AppUser = {
   _id?: string;
   name: string;
   email: string;
   key: UserKey;
   emailVerified?: boolean;
+  role?: UserRole;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -134,6 +140,30 @@ export type HealthTip = {
   category: 'meal' | 'smoothie' | 'supplement' | 'routine' | 'training' | 'other';
   body: string;
   createdBy: UserKey;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+
+export type PublicSharedPlan = {
+  _id?: string;
+  type: SharedPlanType;
+  visibility: SharedVisibility;
+  title: string;
+  description?: string;
+  tags?: string[];
+  language?: LanguageCode;
+  sourceOwner: PlanOwner;
+  publishedBy: UserKey;
+  publishedByName?: string;
+  meals?: Meal[];
+  activities?: SavedActivity[];
+  dayPlan?: SavedDayPlan;
+  weekPlan?: SavedWeekPlan;
+  monthPlan?: unknown;
+  copies?: number;
+  likes?: number;
+  isFeatured?: boolean;
   createdAt?: string;
   updatedAt?: string;
 };

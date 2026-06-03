@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { createHmac, randomBytes, pbkdf2Sync, timingSafeEqual } from 'crypto';
 import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
+import type { UserRole } from '@/lib/types';
 
 export type SessionUser = {
   id: string;
@@ -9,13 +10,22 @@ export type SessionUser = {
   email: string;
   key: string;
   emailVerified: boolean;
+  role?: UserRole;
 };
 
 const SESSION_COOKIE = 'healthapp_session';
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 
 function secret() {
-  return process.env.JWT_SECRET || process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'dev-healthapp-secret-change-me';
+  return process.env.JWT_SECRET || 'dev-healthapp-secret-change-me';
+}
+
+export function roleForEmail(email: string): UserRole {
+  const admins = (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+  return admins.includes(email.trim().toLowerCase()) ? 'admin' : 'user';
 }
 
 function base64url(input: Buffer | string) {
@@ -85,7 +95,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   const session = verifyPayload<SessionUser & { type: string; exp: number }>(token);
   if (!session || session.type !== 'session') return null;
-  return { id: session.id, name: session.name, email: session.email, key: session.key, emailVerified: Boolean(session.emailVerified) };
+  return { id: session.id, name: session.name, email: session.email, key: session.key, emailVerified: Boolean(session.emailVerified), role: session.role || 'user' };
 }
 
 export async function requireSessionUser() {
@@ -106,9 +116,16 @@ export async function getFreshSessionUser(): Promise<SessionUser | null> {
     email: String(user.email || ''),
     key: `user:${String(user._id)}`,
     emailVerified: Boolean(user.emailVerified),
+    role: (user.role === 'admin' ? 'admin' : 'user'),
   };
 }
 
 export function publicUser(user: SessionUser) {
-  return { id: user.id, name: user.name, email: user.email, key: user.key, emailVerified: user.emailVerified };
+  return { id: user.id, name: user.name, email: user.email, key: user.key, emailVerified: user.emailVerified, role: user.role || 'user' };
+}
+
+export async function requireAdminUser() {
+  const user = await getFreshSessionUser();
+  if (!user || user.role !== 'admin') throw new Error('Admin only');
+  return user;
 }

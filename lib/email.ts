@@ -1,10 +1,10 @@
 function emailConfig() {
-  const host = process.env.EMAIL_HOST || process.env.SMTP_HOST || '';
-  const port = Number(process.env.EMAIL_PORT || process.env.SMTP_PORT || 587);
-  const secure = (process.env.EMAIL_SECURE || process.env.SMTP_SECURE || 'false') === 'true';
-  const user = process.env.EMAIL_USER || process.env.SMTP_USER || '';
-  const pass = process.env.EMAIL_PASS || process.env.SMTP_PASS || '';
-  const from = process.env.EMAIL_FROM || process.env.MAIL_FROM || user || 'Your Health <no-reply@example.com>';
+  const host = process.env.EMAIL_HOST || '';
+  const port = Number(process.env.EMAIL_PORT || 587);
+  const secure = (process.env.EMAIL_SECURE || 'false') === 'true';
+  const user = process.env.EMAIL_USER || '';
+  const pass = process.env.EMAIL_PASS || '';
+  const from = process.env.EMAIL_FROM || user || 'Your Health <no-reply@example.com>';
   return { host, port, secure, user, pass, from };
 }
 
@@ -33,9 +33,7 @@ ${url}
 Take care,
 Your Health`;
 
-  // Supports both naming styles:
-  // EMAIL_HOST / EMAIL_PORT / EMAIL_USER / EMAIL_PASS / EMAIL_FROM
-  // and SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / MAIL_FROM
+  // Uses EMAIL_HOST / EMAIL_PORT / EMAIL_USER / EMAIL_PASS / EMAIL_FROM
   const config = emailConfig();
 
   if (config.host && config.user && config.pass) {

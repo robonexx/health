@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
-import { createSession, hashPassword, makeEmailToken, publicUser } from '@/lib/auth';
+import { createSession, hashPassword, makeEmailToken, publicUser, roleForEmail } from '@/lib/auth';
 import { sendVerificationEmail } from '@/lib/email';
 
 function appUrl(request: Request) {
@@ -23,16 +23,18 @@ export async function POST(request: Request) {
     if (existing) return NextResponse.json({ message: 'Email already exists' }, { status: 409 });
 
     const now = new Date().toISOString();
+    const role = roleForEmail(email);
     const result = await db.collection('users').insertOne({
       name,
       email,
       passwordHash: hashPassword(password),
       emailVerified: false,
+      role,
       createdAt: now,
       updatedAt: now,
     });
 
-    const user = { id: String(result.insertedId), name, email, key: `user:${String(result.insertedId)}`, emailVerified: false };
+    const user = { id: String(result.insertedId), name, email, key: `user:${String(result.insertedId)}`, emailVerified: false, role };
     const token = makeEmailToken(user.id, email);
     const confirmationUrl = `${appUrl(request)}/verify-email?token=${encodeURIComponent(token)}`;
     await sendVerificationEmail({ to: email, name, url: confirmationUrl });
